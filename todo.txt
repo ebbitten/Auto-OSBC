@@ -1,0 +1,4 @@
+make it so I don't have to update endpoint to:
+http://localhost:8081/
+
+make it so I don't have to manually install EventsAPI

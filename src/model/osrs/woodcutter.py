@@ -1,14 +1,14 @@
 import time
+import threading
 
-import utilities.api.item_ids as ids
-import utilities.color as clr
-import utilities.random_util as rd
-from model.osrs.osrs_bot import OSRSBot
-from model.runelite_bot import BotStatus
-from utilities.api.morg_http_client import MorgHTTPSocket
-from utilities.api.status_socket import StatusSocket
-from utilities.geometry import RuneLiteObject
-
+from src.utilities.api import item_ids as ids
+import src.utilities.color as clr
+import src.utilities.random_util as rd
+from src.model.osrs.osrs_bot import OSRSBot
+from src.model.runelite_bot import BotStatus
+from src.utilities.api.events_client import EventsAPIClient
+from src.utilities.api.events_server import start_server_thread, EventsAPIHandler
+from src.utilities.geometry import RuneLiteObject
 
 class OSRSWoodcutter(OSRSBot):
     def __init__(self):
@@ -19,6 +19,16 @@ class OSRSWoodcutter(OSRSBot):
         super().__init__(bot_title=bot_title, description=description)
         self.running_time = 1
         self.take_breaks = False
+        self.server_thread = None
+        self.api_started = False
+
+    def start_api_server(self):
+        if not self.api_started:
+            self.server_thread = start_server_thread()
+            # Wait for the server to start
+            time.sleep(2)
+            self.api_started = True
+            self.log_msg("EventsAPI server started.")
 
     def create_options(self):
         self.options_builder.add_slider_option("running_time", "How long to run (minutes)?", 1, 500)
@@ -41,9 +51,21 @@ class OSRSWoodcutter(OSRSBot):
         self.options_set = True
 
     def main_loop(self):
-        # Setup API
-        api_m = MorgHTTPSocket()
-        api_s = StatusSocket()
+        # Start the API server if it hasn't been started yet
+        if not self.api_started:
+            self.start_api_server()
+
+        # Check if the API is ready
+        retry_count = 0
+        while not EventsAPIClient.get_player_status():
+            if retry_count >= 10:
+                self.log_msg("Error: EventsAPI is not ready. Please check the RuneLite plugin and try again.")
+                return
+            self.log_msg(f"Waiting for EventsAPI to be ready... (Attempt {retry_count + 1}/10)")
+            time.sleep(2)
+            retry_count += 1
+
+        self.log_msg("EventsAPI is ready. Starting main loop...")
 
         self.log_msg("Selecting inventory...")
         self.mouse.move_to(self.win.cp_tabs[3].random_point())
@@ -62,11 +84,11 @@ class OSRSWoodcutter(OSRSBot):
 
             # 2% chance to drop logs early
             if rd.random_chance(probability=0.02):
-                self.__drop_logs(api_s)
+                self.__drop_logs()
 
             # If inventory is full, drop logs
-            if api_s.get_is_inv_full():
-                self.__drop_logs(api_s)
+            if EventsAPIClient.get_is_inv_full():
+                self.__drop_logs()
 
             # If our mouse isn't hovering over a tree, and we can't find another tree...
             if not self.mouseover_text(contains="Chop", color=clr.OFF_WHITE) and not self.__move_mouse_to_nearest_tree():
@@ -88,7 +110,11 @@ class OSRSWoodcutter(OSRSBot):
 
             # While the player is chopping (or moving), wait
             probability = 0.10
-            while not api_m.get_is_player_idle():
+            last_position = EventsAPIClient.get_player_position()
+            while True:
+                current_position = EventsAPIClient.get_player_position()
+                if current_position != last_position:
+                    break
                 # Every second there is a chance to move the mouse to the next tree, lessen the chance as time goes on
                 if rd.random_chance(probability):
                     self.__move_mouse_to_nearest_tree(next_nearest=True)
@@ -112,7 +138,6 @@ class OSRSWoodcutter(OSRSBot):
         Args:
             next_nearest: If True, will move the mouse to the second nearest tree. If False, will move the mouse to the
                           nearest tree.
-            mouseSpeed: The speed at which the mouse will move to the tree. See mouse.py for options.
         Returns:
             True if success, False otherwise.
         """
@@ -131,13 +156,21 @@ class OSRSWoodcutter(OSRSBot):
             self.mouse.move_to(tree.random_point())
         return True
 
-    def __drop_logs(self, api_s: StatusSocket):
+    def __drop_logs(self):
         """
         Private function for dropping logs. This code is used in multiple places, so it's been abstracted.
-        Since we made the `api` and `logs` variables assigned to `self`, we can access them from this function.
         """
-        slots = api_s.get_inv_item_indices(ids.logs)
+        slots = EventsAPIClient.get_inv_item_indices(ids.logs)
         self.drop(slots)
         self.logs += len(slots)
         self.log_msg(f"Logs cut: ~{self.logs}")
         time.sleep(1)
+
+    def stop(self):
+        self.log_msg("Stopping bot...")
+        if self.server_thread:
+            # Implement a way to stop the server gracefully
+            self.log_msg("Stopping EventsAPI server...")
+            # You might need to implement a stop method in your server
+        super().stop()
+        self.log_msg("Bot stopped.")

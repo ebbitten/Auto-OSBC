@@ -1,0 +1,11 @@
+{"data":{"userName":"mrmcfet","accountType":"NORMAL","combatLevel":64,"world":377,"worldPoint":{"x":2625,"y":3106,"plane":0},"maxHealth":52,"currentHealth":52,"maxPrayer":35,"currentPrayer":29,"currentRun":10000,"currentWeight":43},"timestamp":1723406586}POST /inventory_items/ HTTP/1.1
+Authorization: Bearer: Credit To llamaXc and OSRSEvents
+X-Request-Id: d7ddc675-ae7b-491f-882c-d87dec68910b
+Content-Type: application/json; charset=utf-8
+Content-Length: 762
+Host: localhost:8081
+Connection: Keep-Alive
+Accept-Encoding: gzip
+User-Agent: okhttp/3.14.9
+
+{"data":{"gePrice":1041,"inventory":[{"id":1355,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1755,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1},{"id":1521,"quantity":1}]},"timestamp":1723406587}POST /player_status/ HTTP

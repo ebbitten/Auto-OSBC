@@ -72,3 +72,41 @@ We've ditched machine learned OCR in favor of a much faster and more reliable cu
     <img src="https://i.imgur.com/5X29MVY.png" alt="Buy Me A Coffee" height="60dp">
   </a>
 </p>
+
+
+
+
+# OS Bot COLOR
+
+## Installation
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/your-username/OS-Bot-COLOR.git
+   cd OS-Bot-COLOR
+   ```
+
+2. Create and activate a virtual environment:
+   ```
+   python -m venv venv
+   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+   ```
+
+3. Install the project and its dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+4. Run the application:
+   ```
+   python src/OSBY.py
+   ```
+
+## Development
+
+For development, you may want to install the project in editable mode:
+```
+pip install -e .
+```
+
+This allows changes to the source code to be immediately reflected in the installed package.

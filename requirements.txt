@@ -17,3 +17,5 @@ pywinctl==0.0.42
 requests==2.31.0
 simplejson==3.17.6
 tkinter-tooltip==2.1.0
+
+-e .

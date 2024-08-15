@@ -1,19 +1,27 @@
 import importlib
 import pathlib
 import tkinter
+import sys
 from typing import List
+
+# Add the project root to the Python path
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.absolute()))
 
 import customtkinter
 from PIL import Image, ImageTk
 from pynput import keyboard
 from tktooltip import ToolTip
 
-import utilities.settings as settings
+from utilities import settings
 from controller.bot_controller import BotController, MockBotController
 from model import Bot, RuneLiteBot
 from utilities.game_launcher import Launchable
 from view import *
 from view.fonts.fonts import *
+
+# Import the EventsAPI server and client
+from utilities.api.events_server import start_server_thread
+from utilities.api.events_client import EventsAPIClient
 
 customtkinter.set_appearance_mode("Dark")  # Modes: "System" (standard), "Dark", "Light"
 customtkinter.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
