@@ -1,2 +1,9 @@
-from .combat.combat import OSRSCombat
-from .woodcutter import OSRSWoodcutter
+from .combat.combat import CombatBot
+from .woodcutter import WoodcutterBot
+from .agility import AgilityBot
+
+__all__ = [
+    "CombatBot",
+    "WoodcutterBot",
+    "AgilityBot"
+]

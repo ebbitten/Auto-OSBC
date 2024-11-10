@@ -1,7 +1,8 @@
 """
 Serves as the mediator between a bot and the UI. Methods should likely not be modified.
 """
-
+import importlib
+import sys
 from model.bot import Bot, BotStatus
 from view.bot_view import BotView
 
@@ -14,10 +15,39 @@ class BotController(object):
         self.model: Bot = model
         self.view: BotView = view
 
+    def reload_model(self):
+        """
+        Reloads the current bot module and recreates the model instance.
+        """
+        if self.model:
+            # Get the module name from the model's class
+            module_name = self.model.__class__.__module__
+            # Stop the current bot if running
+            if self.model.status == BotStatus.RUNNING:
+                self.model.stop()
+            # Reload the module
+            module = sys.modules[module_name]
+            importlib.reload(module)
+            # Get the class and create new instance
+            class_name = self.model.__class__.__name__
+            ModelClass = getattr(module, class_name)
+            new_model = ModelClass()
+            # Transfer necessary state
+            new_model.set_controller(self)
+            new_model.options_set = self.model.options_set
+            if hasattr(self.model, 'options'):
+                new_model.save_options(self.model.options)
+            # Replace model
+            self.model = new_model
+            self.update_status()
+            self.update_log("Bot script reloaded.")
+
     def play(self):
         """
         Play/pause btn clicked on view.
         """
+        # Reload the model before playing
+        self.reload_model()
         self.model.play()
 
     def stop(self):

@@ -148,6 +148,18 @@ class InfoFrame(customtkinter.CTkFrame):
         self.controller = None
         self.options_class = None
 
+        # Add reload button
+        self.btn_reload = customtkinter.CTkButton(
+            master=self.btn_frame,
+            text="Reload Script",
+            font=button_med_font(),
+            text_color="white",
+            fg_color="#616161",
+            hover_color="#4f4f4f",
+            command=self.reload_btn_clicked,
+        )
+        self.btn_reload.grid(row=4, column=0, pady=15, sticky="nsew")
+
     # ---- Setup ----
     def set_controller(self, controller):
         self.controller = controller
@@ -189,6 +201,13 @@ class InfoFrame(customtkinter.CTkFrame):
 
     def launch_btn_clicked(self):
         self.controller.launch_game()
+
+    def reload_btn_clicked(self):
+        """
+        Reloads the current bot script.
+        """
+        if self.controller and self.controller.model:
+            self.controller.reload_model()
 
     # ---- Keyboard Interrupt Handlers ----
     def start_keyboard_listener(self):
