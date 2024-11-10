@@ -2,3 +2,8 @@ make it so I don't have to update endpoint to:
 http://localhost:8081/
 
 make it so I don't have to manually install EventsAPI
+
+bring over my mouse movement
+make it remember saved settings
+make it quit if it retries teleporting multiple times
+make it reset course coloring if i teleprot
