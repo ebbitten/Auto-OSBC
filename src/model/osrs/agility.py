@@ -24,6 +24,7 @@ class AgilityBot(OSRSBot):
         self.last_position = None
         self.no_obstacle_count = 0
         self.obstacle_count = 0  # Add counter for obstacles
+        self.last_lap_count = None  # Add this to track last seen lap count
         # Define number of obstacles per course
         self.course_obstacles = {
             "Gnome": 6,
@@ -62,6 +63,22 @@ class AgilityBot(OSRSBot):
         
         # Use exact coordinates for Camelot teleport
         teleport_point = Point(1751, 870)
+        self.log_msg(f"Clicking Camelot teleport at: {teleport_point}")
+        self.mouse.move_to(teleport_point)
+        self.mouse.click()
+        
+        time.sleep(4)  # Wait for teleport animation
+        self.stuck_counter = 0
+        self.no_obstacle_count = 0
+
+    def cast_varrock_teleport(self):
+        """
+        Casts Camelot teleport spell
+        """
+        self.log_msg("Casting Camelot Teleport...")
+        
+        # Use exact coordinates for Camelot teleport
+        teleport_point = Point(1751, 829)
         self.log_msg(f"Clicking Camelot teleport at: {teleport_point}")
         self.mouse.move_to(teleport_point)
         self.mouse.click()
@@ -118,17 +135,33 @@ class AgilityBot(OSRSBot):
 
     def is_at_course_end(self):
         """
-        Checks if we're at the end of the course by counting obstacles
+        Checks if we're at the end of the course by looking for blue tiles
         Returns: True if at course end, False otherwise
         """
-        self.log_msg(f"Checking course end (obstacle count: {self.obstacle_count})")
+        self.log_msg("Checking for course end...")
         
-        # Check if we've completed all obstacles for this course
-        if self.obstacle_count >= self.course_obstacles.get(self.course, 999):
-            self.log_msg(f"Reached end of course (completed {self.obstacle_count} obstacles)")
-            self.obstacle_count = 0  # Reset counter
-            return True
+        # Take screenshot of game view
+        game_view = self.win.game_view.screenshot()
+        
+        # Look for blue tiles
+        blue_mask = clr.isolate_colors(game_view, [clr.BLUE])
+        contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if contours:
+            # Calculate total blue area
+            total_blue_area = sum(cv2.contourArea(c) for c in contours)
+            self.log_msg(f"Found blue area: {total_blue_area}")
             
+            # Save debug image if significant blue area found
+            if total_blue_area > 1000:
+                debug_img = game_view.copy()
+                cv2.drawContours(debug_img, contours, -1, (255, 0, 0), 2)
+                cv2.imwrite("debug_end_blue.png", debug_img)
+                
+                self.log_msg("Course end detected (blue tiles found)")
+                self.obstacle_count = 0  # Reset counter
+                return True
+                
         return False
 
     def find_mark_of_grace(self):
@@ -154,7 +187,7 @@ class AgilityBot(OSRSBot):
                 self.log_msg(f"Red object - Area: {area}, Size: {w}x{h}, Aspect ratio: {aspect_ratio:.2f}")
                 
                 # More lenient size range for marks (adjusted based on logs)
-                if 25 < area < 2000 and 0.5 < aspect_ratio < 2.0:  # Increased upper limit, added aspect ratio check
+                if 10 < area < 2000 and 0.5 < aspect_ratio < 1.5:  # Increased upper limit, added aspect ratio check
                     valid_contours.append((area, contour))
                     self.log_msg(f"Valid mark of grace candidate found with area: {area}")
             
@@ -190,22 +223,22 @@ class AgilityBot(OSRSBot):
         
         while self.status == BotStatus.RUNNING:
             try:
-                # Check if we're at course end
+                # First check if we're at course end
                 if self.is_at_course_end():
                     self.log_msg("Reached end of course, teleporting...")
                     time.sleep(1)
                     self.cast_camelot_teleport()
                     continue
-                
-                # First check for mark of grace
+
+                # Then check for mark of grace
                 mark = self.find_mark_of_grace()
                 if mark:
                     self.log_msg("Found mark of grace - collecting...")
                     self.mouse.move_to(mark.random_point(), mouseSpeed="medium")
                     self.mouse.click()
-                    time.sleep(0.5)  # Short wait before checking movement
+                    time.sleep(0.5)
                     self.wait_for_movement_to_stop()
-                
+
                 # Then find next obstacle
                 obstacle = self.find_next_obstacle()
                 
@@ -226,6 +259,7 @@ class AgilityBot(OSRSBot):
                     # If stuck for too long, teleport out
                     if self.stuck_counter > 5:
                         self.log_msg("Stuck on same obstacle for too long!")
+                        # self.cast_varrock_teleport()
                         self.cast_camelot_teleport()
                         continue
                     
@@ -249,6 +283,12 @@ class AgilityBot(OSRSBot):
                     self.no_obstacle_count += 1
                     if self.no_obstacle_count > 5:
                         self.log_msg("No obstacles found for too long!")
+                        # Take debug screenshot
+                        debug_img = self.win.game_view.screenshot()
+                        timestamp = time.strftime("%Y%m%d-%H%M%S")
+                        cv2.imwrite(f"debug_no_obstacles_{timestamp}.png", debug_img)
+                        self.log_msg(f"Debug screenshot saved as debug_no_obstacles_{timestamp}.png")
+                        # self.cast_varrock_teleport()
                         self.cast_camelot_teleport()
                     time.sleep(1.5)
 
@@ -260,6 +300,7 @@ class AgilityBot(OSRSBot):
                 if fails > 5:
                     self.log_msg("Too many errors, attempting to teleport...")
                     self.cast_camelot_teleport()
+                    self.status = BotStatus.STOPPED
                     # fails = 0
                 time.sleep(1.5)
 
@@ -287,7 +328,7 @@ class AgilityBot(OSRSBot):
                 area = cv2.contourArea(contour)
                 self.log_msg(f"Found green object with area: {area}")
                 # Adjusted area range to include larger obstacles
-                if 100 < area < 20000:  # Increased upper limit
+                if 100 < area < 100000:  # Increased upper limit
                     valid_contours.append(contour)
                     self.log_msg(f"Valid green object found with area: {area}")
             
@@ -310,7 +351,7 @@ class AgilityBot(OSRSBot):
                 return None
                 
             # Add some padding
-            padding = 5
+            padding = 3
             x = max(0, x - padding)
             y = max(0, y - padding)
             w = w + padding * 2

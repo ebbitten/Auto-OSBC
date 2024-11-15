@@ -1,9 +1,9 @@
-from .combat.combat import CombatBot
-from .woodcutter import WoodcutterBot
+# from .combat.combat import CombatBot
+# from .woodcutter import WoodcutterBot
 from .agility import AgilityBot
 
 __all__ = [
-    "CombatBot",
-    "WoodcutterBot",
+    # "CombatBot",
+    # "WoodcutterBot",
     "AgilityBot"
 ]
