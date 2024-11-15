@@ -11,6 +11,7 @@ import utilities.imagesearch as imsearch
 from utilities.window import Window
 from utilities.options_builder import OptionsBuilder
 import cv2
+import pyautogui as pag
 
 class AgilityBot(OSRSBot):
     def __init__(self):
@@ -25,8 +26,11 @@ class AgilityBot(OSRSBot):
         self.no_obstacle_count = 0
         self.obstacle_count = 0  # Add counter for obstacles
         self.last_lap_count = None  # Add this to track last seen lap count
+        self.runtime = 1  # Default runtime in minutes
+        self.start_time = None
         # Define number of obstacles per course
         self.course_obstacles = {
+            "Seers": 6,
             "Gnome": 6,
             "Draynor": 6,
             "Al Kharid": 6,
@@ -38,10 +42,11 @@ class AgilityBot(OSRSBot):
         """
         Use the OptionsBuilder to define the options for the bot.
         """
-        self.options_builder.add_dropdown_option("course", "Agility Course", ["Gnome", "Draynor", "Al Kharid", "Varrock", "Canifis"])
+        self.options_builder.add_dropdown_option("course", "Agility Course", ["Seers", "Gnome", "Draynor", "Al Kharid", "Varrock", "Canifis"])
         self.options_builder.add_slider_option("min_breaks", "Minimum break time (seconds)", 1, 30)
         self.options_builder.add_slider_option("max_breaks", "Maximum break time (seconds)", 31, 120)
         self.options_builder.add_checkbox_option("take_breaks", "Take breaks between laps", ["Yes"])
+        self.options_builder.add_text_edit_option("runtime", "Runtime (minutes, 1-3600)", "60")  # Only 3 arguments: key, title, placeholder
 
     def save_options(self, options: dict):
         """
@@ -52,6 +57,18 @@ class AgilityBot(OSRSBot):
         self.min_breaks = options["min_breaks"] 
         self.max_breaks = options["max_breaks"]
         self.take_breaks = options["take_breaks"]
+
+            # Validate and convert runtime
+        try:
+            runtime = int(options["runtime"])
+            if runtime < 1 or runtime > 3600:
+                self.log_msg("Runtime must be between 1 and 3600 minutes. Setting to 60 minutes.")
+                runtime = 60
+        except ValueError:
+            self.log_msg("Invalid runtime value. Setting to 60 minutes.")
+            runtime = 60
+
+        self.runtime = options["runtime"] * 60  # Convert minutes to seconds
         self.log_msg(f"Running {self.course} agility course")
         self.options_set = True
 
@@ -187,7 +204,7 @@ class AgilityBot(OSRSBot):
                 self.log_msg(f"Red object - Area: {area}, Size: {w}x{h}, Aspect ratio: {aspect_ratio:.2f}")
                 
                 # More lenient size range for marks (adjusted based on logs)
-                if 10 < area < 2000 and 0.5 < aspect_ratio < 1.5:  # Increased upper limit, added aspect ratio check
+                if 10 < area < 10000 and 0.5 < aspect_ratio < 1.5:  # Increased upper limit, added aspect ratio check
                     valid_contours.append((area, contour))
                     self.log_msg(f"Valid mark of grace candidate found with area: {area}")
             
@@ -217,11 +234,16 @@ class AgilityBot(OSRSBot):
         """
         self.log_msg("Starting Agility Bot...")
         self.setup_camera()
+        self.start_time = time.time()  # Add start time when options are saved
         last_obstacle_pos = None
         fails = 0
         self.obstacle_count = 0  # Reset counter at start
         
         while self.status == BotStatus.RUNNING:
+            if time.time() - self.start_time > int(self.runtime):
+                self.log_msg("Runtime completed. Stopping bot...")
+                self.status = BotStatus.STOPPED
+                break
             try:
                 # First check if we're at course end
                 if self.is_at_course_end():
@@ -383,6 +405,10 @@ class AgilityBot(OSRSBot):
         self.log_msg("Setting up camera...")
         # Set compass North
         self.set_compass_north()
+        # Switch to spellbook
+        self.log_msg("Switching to spellbook...")
+        pag.press('f4')
+        time.sleep(0.5)  # Small delay after switching
         # Set camera to highest angle
         self.move_camera(vertical=90) 
-    
+        
