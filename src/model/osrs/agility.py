@@ -20,15 +20,14 @@ class AgilityBot(OSRSBot):
         super().__init__(bot_title=bot_title, description=description)
         
         self.obstacle_color = clr.GREEN
-        self.mark_color = clr.RED  # Color for mark of grace
+        self.mark_color = clr.RED
         self.stuck_counter = 0
         self.last_position = None
         self.no_obstacle_count = 0
-        self.obstacle_count = 0  # Add counter for obstacles
-        self.last_lap_count = None  # Add this to track last seen lap count
-        self.runtime = 1  # Default runtime in minutes
+        self.obstacle_count = 0
+        self.last_lap_count = None
+        self.runtime_minutes = 60  # Default runtime in minutes
         self.start_time = None
-        # Define number of obstacles per course
         self.course_obstacles = {
             "Seers": 6,
             "Gnome": 6,
@@ -46,19 +45,19 @@ class AgilityBot(OSRSBot):
         self.options_builder.add_slider_option("min_breaks", "Minimum break time (seconds)", 1, 30)
         self.options_builder.add_slider_option("max_breaks", "Maximum break time (seconds)", 31, 120)
         self.options_builder.add_checkbox_option("take_breaks", "Take breaks between laps", ["Yes"])
-        self.options_builder.add_text_edit_option("runtime", "Runtime (minutes, 1-3600)", "60")  # Only 3 arguments: key, title, placeholder
+        self.options_builder.add_text_edit_option("runtime", "Runtime (minutes, 1-3600)", "60")
 
     def save_options(self, options: dict):
         """
-        Save the options from the GUI
+        Save the options from the GUI and validate runtime
         """
         self.options = options
         self.course = options["course"]
-        self.min_breaks = options["min_breaks"] 
+        self.min_breaks = options["min_breaks"]
         self.max_breaks = options["max_breaks"]
         self.take_breaks = options["take_breaks"]
 
-            # Validate and convert runtime
+        # Validate and convert runtime
         try:
             runtime = int(options["runtime"])
             if runtime < 1 or runtime > 3600:
@@ -68,9 +67,27 @@ class AgilityBot(OSRSBot):
             self.log_msg("Invalid runtime value. Setting to 60 minutes.")
             runtime = 60
 
-        self.runtime = options["runtime"] * 60  # Convert minutes to seconds
-        self.log_msg(f"Running {self.course} agility course")
+        self.runtime_minutes = runtime
+        self.log_msg(f"Bot will run for {self.runtime_minutes} minutes")
         self.options_set = True
+
+
+    def check_runtime(self) -> bool:
+        """
+        Check if the bot should continue running based on elapsed time
+        Returns: True if bot should continue, False if runtime exceeded
+        """
+        if self.start_time is None:
+            return True
+            
+        elapsed_minutes = (time.time() - self.start_time) / 60
+        remaining_minutes = self.runtime_minutes - elapsed_minutes
+        
+        # Log remaining time every 5 minutes
+        if int(elapsed_minutes) % 5 == 0:
+            self.log_msg(f"Time remaining: {remaining_minutes:.1f} minutes")
+            
+        return elapsed_minutes < self.runtime_minutes        
 
     def cast_camelot_teleport(self):
         """
@@ -230,18 +247,21 @@ class AgilityBot(OSRSBot):
 
     def main_loop(self):
         """
-        Main bot loop. 
+        Main bot loop with proper runtime handling
         """
         self.log_msg("Starting Agility Bot...")
         self.setup_camera()
-        self.start_time = time.time()  # Add start time when options are saved
+        self.start_time = time.time()
         last_obstacle_pos = None
         fails = 0
-        self.obstacle_count = 0  # Reset counter at start
+        self.obstacle_count = 0
+
+        self.log_msg(f"Bot will run for {self.runtime_minutes} minutes")
         
         while self.status == BotStatus.RUNNING:
-            if time.time() - self.start_time > int(self.runtime):
-                self.log_msg("Runtime completed. Stopping bot...")
+            # Check if runtime exceeded
+            if not self.check_runtime():
+                self.log_msg(f"Runtime of {self.runtime_minutes} minutes completed. Stopping bot...")
                 self.status = BotStatus.STOPPED
                 break
             try:
