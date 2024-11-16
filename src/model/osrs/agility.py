@@ -28,6 +28,10 @@ class AgilityBot(OSRSBot):
         self.last_lap_count = None  # Add this to track last seen lap count
         self.runtime = 1  # Default runtime in minutes
         self.start_time = None
+        self.continue_color = clr.PURPLE  # Color for continue squares
+        self.continue2_color = clr.PINK   # Color for second continue square
+        self.last_continue = None  # Track which continue was last used
+        self.last_was_continue = False  # Track if last action was a continue
         # Define number of obstacles per course
         self.course_obstacles = {
             "Seers": 6,
@@ -35,7 +39,7 @@ class AgilityBot(OSRSBot):
             "Draynor": 6,
             "Al Kharid": 6,
             "Varrock": 6,
-            "Canifis": 6
+            "Canifis": 7  # Canifis has 7 obstacles
         }
 
     def create_options(self):
@@ -247,9 +251,12 @@ class AgilityBot(OSRSBot):
             try:
                 # First check if we're at course end
                 if self.is_at_course_end():
-                    self.log_msg("Reached end of course, teleporting...")
+                    self.log_msg("Reached end of course...")
                     time.sleep(1)
-                    self.cast_camelot_teleport()
+                    if self.course == "Seers":
+                        self.cast_camelot_teleport()
+                    else:
+                        self.log_msg("No teleport needed for this course")
                     continue
 
                 # Then check for mark of grace
@@ -260,6 +267,8 @@ class AgilityBot(OSRSBot):
                     self.mouse.click()
                     time.sleep(0.5)
                     self.wait_for_movement_to_stop()
+                    self.last_was_continue = False  # Reset continue status
+                    continue
 
                 # Then find next obstacle
                 obstacle = self.find_next_obstacle()
@@ -267,6 +276,8 @@ class AgilityBot(OSRSBot):
                 if obstacle:
                     self.log_msg("Found obstacle...")
                     self.no_obstacle_count = 0
+                    self.last_was_continue = False  # Reset continue status
+                    self.last_continue = None  # Reset continue tracking
                     
                     # Check if we're stuck on same obstacle
                     current_pos = (obstacle.left, obstacle.top)
@@ -301,18 +312,36 @@ class AgilityBot(OSRSBot):
                     self.wait_for_movement_to_stop()
                     
                 else:
-                    self.log_msg(f"No obstacle found (count: {self.no_obstacle_count})")
-                    self.no_obstacle_count += 1
-                    if self.no_obstacle_count > 5:
-                        self.log_msg("No obstacles found for too long!")
-                        # Take debug screenshot
-                        debug_img = self.win.game_view.screenshot()
-                        timestamp = time.strftime("%Y%m%d-%H%M%S")
-                        cv2.imwrite(f"debug_no_obstacles_{timestamp}.png", debug_img)
-                        self.log_msg(f"Debug screenshot saved as debug_no_obstacles_{timestamp}.png")
-                        # self.cast_varrock_teleport()
-                        self.cast_camelot_teleport()
-                    time.sleep(1.5)
+                    # Try to find continue squares if no obstacle found
+                    continue_square = None
+                    if not self.last_was_continue:
+                        # Try first continue square
+                        continue_square = self.find_continue_square(1)
+                    elif self.last_continue == 1:
+                        # If we just used continue1, try continue2
+                        continue_square = self.find_continue_square(2)
+                    
+                    if continue_square:
+                        self.log_msg("Found continue square...")
+                        self.mouse.move_to(continue_square.random_point(), mouseSpeed="medium")
+                        self.mouse.click()
+                        time.sleep(0.5)
+                        self.wait_for_movement_to_stop()
+                        self.last_was_continue = True
+                        self.last_continue = 2 if self.last_continue == 1 else 1
+                        self.no_obstacle_count = 0
+                    else:
+                        self.log_msg(f"No obstacle or continue square found (count: {self.no_obstacle_count})")
+                        self.no_obstacle_count += 1
+                        if self.no_obstacle_count > 5:
+                            self.log_msg("No obstacles found for too long!")
+                            # Take debug screenshot
+                            debug_img = self.win.game_view.screenshot()
+                            timestamp = time.strftime("%Y%m%d-%H%M%S")
+                            cv2.imwrite(f"debug_no_obstacles_{timestamp}.png", debug_img)
+                            if self.course == "Seers":
+                                self.cast_camelot_teleport()
+                        time.sleep(1.5)
 
                 self.update_progress(0.5)
                 
@@ -411,4 +440,47 @@ class AgilityBot(OSRSBot):
         time.sleep(0.5)  # Small delay after switching
         # Set camera to highest angle
         self.move_camera(vertical=90) 
+
+    def find_continue_square(self, continue_num=1):
+        """
+        Finds a continue square (purple or pink) on screen
+        Args:
+            continue_num: 1 for first continue (purple), 2 for second continue (pink)
+        Returns: Rectangle containing the square, or None if not found
+        """
+        self.log_msg(f"Searching for continue square {continue_num}...")
+        game_view = self.win.game_view.screenshot()
+        
+        # Select color based on continue number
+        color = self.continue2_color if continue_num == 2 else self.continue_color
+        
+        continue_mask = clr.isolate_colors(game_view, [color])
+        contours, _ = cv2.findContours(continue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if contours:
+            self.log_msg(f"Found {len(contours)} continue squares")
+            
+            # Filter and sort contours by area
+            valid_contours = []
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if 100 < area < 5000:  # Adjust these values based on testing
+                    valid_contours.append((area, contour))
+                    self.log_msg(f"Valid continue square found with area: {area}")
+            
+            if valid_contours:
+                # Get the largest valid contour
+                valid_contours.sort(key=lambda x: x[0], reverse=True)
+                _, continue_contour = valid_contours[0]
+                
+                x, y, w, h = cv2.boundingRect(continue_contour)
+                
+                # Translate coordinates relative to game window
+                game_view_rect = self.win.game_view
+                abs_x = game_view_rect.left + x
+                abs_y = game_view_rect.top + y
+                
+                return Rectangle(abs_x, abs_y, w, h)
+                
+        return None
         
