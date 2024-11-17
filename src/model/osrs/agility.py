@@ -302,7 +302,7 @@ class AgilityBot(OSRSBot):
                     if self.stuck_counter > 5:
                         self.log_msg("Stuck on same obstacle for too long!")
                         # self.cast_varrock_teleport()
-                        self.cast_camelot_teleport()
+                        # self.cast_camelot_teleport()
                         continue
                     
                     # Click the obstacle with some randomization
@@ -331,7 +331,7 @@ class AgilityBot(OSRSBot):
                         cv2.imwrite(f"debug_no_obstacles_{timestamp}.png", debug_img)
                         self.log_msg(f"Debug screenshot saved as debug_no_obstacles_{timestamp}.png")
                         # self.cast_varrock_teleport()
-                        self.cast_camelot_teleport()
+                        # self.cast_camelot_teleport()
                     time.sleep(1.5)
 
                 self.update_progress(0.5)
@@ -341,7 +341,7 @@ class AgilityBot(OSRSBot):
                 fails += 1
                 if fails > 5:
                     self.log_msg("Too many errors, attempting to teleport...")
-                    self.cast_camelot_teleport()
+                    # self.cast_camelot_teleport()
                     self.status = BotStatus.STOPPED
                     # fails = 0
                 time.sleep(1.5)
