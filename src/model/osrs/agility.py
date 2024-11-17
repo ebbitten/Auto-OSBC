@@ -28,8 +28,8 @@ class AgilityBot(OSRSBot):
         self.last_lap_count = None  # Add this to track last seen lap count
         self.runtime = 1  # Default runtime in minutes
         self.start_time = None
-        self.continue_color = clr.PURPLE  # Color for continue squares
-        self.continue2_color = clr.PINK   # Color for second continue square
+        self.continue_color = clr.PURPLE  # Color([170, 0, 255])
+        self.continue2_color = clr.PINK   # Color([255, 0, 231])
         self.last_continue = None  # Track which continue was last used
         self.last_was_continue = False  # Track if last action was a continue
         # Define number of obstacles per course
@@ -238,11 +238,11 @@ class AgilityBot(OSRSBot):
         """
         self.log_msg("Starting Agility Bot...")
         self.setup_camera()
-        self.start_time = time.time()  # Add start time when options are saved
+        self.start_time = time.time()
         last_obstacle_pos = None
         fails = 0
-        self.obstacle_count = 0  # Reset counter at start
-        
+        self.obstacle_count = 0
+
         while self.status == BotStatus.RUNNING:
             if time.time() - self.start_time > int(self.runtime):
                 self.log_msg("Runtime completed. Stopping bot...")
@@ -306,10 +306,15 @@ class AgilityBot(OSRSBot):
                     self.obstacle_count += 1
                     self.log_msg(f"Completed obstacle {self.obstacle_count} of {self.course_obstacles.get(self.course, '?')}")
                     
-                    # Wait a moment before checking movement
-                    time.sleep(0.5)
-                    # Wait for movement to complete
-                    self.wait_for_movement_to_stop()
+                    # Add longer delay for Canifis course
+                    if self.course == "Canifis":
+                        time.sleep(1.5)  # Longer initial delay for Canifis
+                    else:
+                        time.sleep(0.5)  # Original delay for other courses
+                        
+                    # Wait for movement to complete with adjusted timeout for Canifis
+                    timeout = 15 if self.course == "Canifis" else 10
+                    self.wait_for_movement_to_stop(timeout=timeout)
                     
                 else:
                     # Try to find continue squares if no obstacle found
@@ -451,29 +456,53 @@ class AgilityBot(OSRSBot):
         self.log_msg(f"Searching for continue square {continue_num}...")
         game_view = self.win.game_view.screenshot()
         
+        # Save original screenshot for debugging
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        cv2.imwrite(f"debug_continue{continue_num}_original_{timestamp}.png", game_view)
+        
         # Select color based on continue number
         color = self.continue2_color if continue_num == 2 else self.continue_color
+        color_name = "PINK" if continue_num == 2 else "PURPLE"
+        self.log_msg(f"Using color: {color_name}")
+        self.log_msg(f"Color values - Lower: {color.lower}, Upper: {color.upper}")
         
+        # Create and save color mask
         continue_mask = clr.isolate_colors(game_view, [color])
+        cv2.imwrite(f"debug_continue{continue_num}_mask_{timestamp}.png", continue_mask)
+        
         contours, _ = cv2.findContours(continue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         if contours:
             self.log_msg(f"Found {len(contours)} continue squares")
             
+            # Draw all contours on debug image
+            debug_img = game_view.copy()
+            cv2.drawContours(debug_img, contours, -1, (0, 255, 0), 2)
+            cv2.imwrite(f"debug_continue{continue_num}_contours_{timestamp}.png", debug_img)
+            
             # Filter and sort contours by area
             valid_contours = []
-            for contour in contours:
+            for i, contour in enumerate(contours):
                 area = cv2.contourArea(contour)
-                if 100 < area < 5000:  # Adjust these values based on testing
+                x, y, w, h = cv2.boundingRect(contour)
+                aspect_ratio = float(w)/h if h != 0 else 0
+                self.log_msg(f"Contour {i}: Area={area}, Size={w}x{h}, Aspect ratio={aspect_ratio:.2f}")
+                
+                if 1000 < area < 100000:  # Adjust these values based on testing
                     valid_contours.append((area, contour))
                     self.log_msg(f"Valid continue square found with area: {area}")
             
             if valid_contours:
                 # Get the largest valid contour
                 valid_contours.sort(key=lambda x: x[0], reverse=True)
-                _, continue_contour = valid_contours[0]
+                area, continue_contour = valid_contours[0]
                 
                 x, y, w, h = cv2.boundingRect(continue_contour)
+                self.log_msg(f"Selected contour: Area={area}, Size={w}x{h}")
+                
+                # Draw selected contour in different color
+                cv2.drawContours(debug_img, [continue_contour], -1, (0, 0, 255), 3)
+                cv2.imwrite(f"debug_continue{continue_num}_selected_{timestamp}.png", debug_img)
                 
                 # Translate coordinates relative to game window
                 game_view_rect = self.win.game_view
@@ -481,6 +510,10 @@ class AgilityBot(OSRSBot):
                 abs_y = game_view_rect.top + y
                 
                 return Rectangle(abs_x, abs_y, w, h)
+            else:
+                self.log_msg("No valid contours found within size constraints")
+        else:
+            self.log_msg("No contours found at all")
                 
         return None
         
