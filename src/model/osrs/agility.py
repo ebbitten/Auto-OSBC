@@ -382,12 +382,12 @@ class AgilityBot(OSRSBot):
                         self.log_msg(f"No obstacle or continue square found (count: {self.no_obstacle_count})")
                         self.no_obstacle_count += 1
                         if self.no_obstacle_count > 5:
-                            self.log_msg("No obstacles found for too long! Resetting counters...")
-                            # Take debug screenshot
+                            self.log_msg("No obstacles found for too long! Stopping bot...")
+                            # Take final debug screenshot
                             debug_img = self.win.game_view.screenshot()
-                            timestamp = time.strftime("%Y%m%d-%H%M%S")
-                            cv2.imwrite(f"debug_no_obstacles_{timestamp}.png", debug_img)
-                            self.no_obstacle_count = 0
+                            cv2.imwrite("debug_no_obstacles_final.png", debug_img)
+                            self.status = BotStatus.STOPPED
+                            break
                         time.sleep(1.5)
 
                 self.update_progress(0.5)
@@ -397,7 +397,11 @@ class AgilityBot(OSRSBot):
                 fails += 1
                 if fails > 5:
                     self.log_msg("Too many errors, stopping bot...")
+                    # Take final debug screenshot
+                    debug_img = self.win.game_view.screenshot()
+                    cv2.imwrite("debug_error_final.png", debug_img)
                     self.status = BotStatus.STOPPED
+                    break
                 time.sleep(1.5)
 
     def find_next_obstacle(self):
@@ -496,10 +500,6 @@ class AgilityBot(OSRSBot):
         self.log_msg(f"Searching for continue square {continue_num}...")
         game_view = self.win.game_view.screenshot()
         
-        # Save original screenshot for debugging
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        cv2.imwrite(f"debug_continue{continue_num}_original_{timestamp}.png", game_view)
-        
         # Select color based on continue number
         color = self.continue2_color if continue_num == 2 else self.continue_color
         color_name = "PINK" if continue_num == 2 else "PURPLE"
@@ -508,7 +508,7 @@ class AgilityBot(OSRSBot):
         
         # Create and save color mask
         continue_mask = clr.isolate_colors(game_view, [color])
-        cv2.imwrite(f"debug_continue{continue_num}_mask_{timestamp}.png", continue_mask)
+        cv2.imwrite(f"debug_continue{continue_num}_mask.png", continue_mask)
         
         contours, _ = cv2.findContours(continue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
@@ -518,7 +518,7 @@ class AgilityBot(OSRSBot):
             # Draw all contours on debug image
             debug_img = game_view.copy()
             cv2.drawContours(debug_img, contours, -1, (0, 255, 0), 2)
-            cv2.imwrite(f"debug_continue{continue_num}_contours_{timestamp}.png", debug_img)
+            cv2.imwrite(f"debug_continue{continue_num}_contours.png", debug_img)
             
             # Filter and sort contours by area
             valid_contours = []
@@ -542,7 +542,7 @@ class AgilityBot(OSRSBot):
                 
                 # Draw selected contour in different color
                 cv2.drawContours(debug_img, [continue_contour], -1, (0, 0, 255), 3)
-                cv2.imwrite(f"debug_continue{continue_num}_selected_{timestamp}.png", debug_img)
+                cv2.imwrite(f"debug_continue{continue_num}_selected.png", debug_img)
                 
                 # Translate coordinates relative to game window
                 game_view_rect = self.win.game_view
