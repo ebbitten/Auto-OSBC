@@ -259,7 +259,51 @@ class AgilityBot(OSRSBot):
                         self.log_msg("No teleport needed for this course")
                     continue
 
-                # Then check for mark of grace
+                # Find next obstacle first
+                obstacle = self.find_next_obstacle()
+                
+                if obstacle:
+                    self.log_msg("Found obstacle...")
+                    self.no_obstacle_count = 0
+                    self.last_was_continue = False
+                    self.last_continue = None
+                    
+                    # Check if we're stuck on same obstacle
+                    current_pos = (obstacle.left, obstacle.top)
+                    if last_obstacle_pos == current_pos:
+                        self.stuck_counter += 1
+                        self.log_msg(f"Same obstacle detected {self.stuck_counter} times")
+                    else:
+                        self.stuck_counter = 0
+                        self.log_msg("New obstacle found")
+                    last_obstacle_pos = current_pos
+                    
+                    # If stuck for too long, just reset counters
+                    if self.stuck_counter > 5:
+                        self.log_msg("Stuck on same obstacle for too long! Resetting counters...")
+                        self.stuck_counter = 0
+                        self.no_obstacle_count = 0
+                        continue
+                    
+                    # Click the obstacle with some randomization
+                    click_point = obstacle.random_point()
+                    self.log_msg(f"Clicking obstacle at: {click_point}")
+                    self.mouse.move_to(click_point, mouseSpeed="medium")
+                    self.mouse.click()
+                    
+                    self.obstacle_count += 1
+                    self.log_msg(f"Completed obstacle {self.obstacle_count} of {self.course_obstacles.get(self.course, '?')}")
+                    
+                    if self.course == "Canifis":
+                        time.sleep(1.5)
+                    else:
+                        time.sleep(0.5)
+                        
+                    timeout = 15 if self.course == "Canifis" else 10
+                    self.wait_for_movement_to_stop(timeout=timeout)
+                    continue
+
+                # Then check for mark of grace if no obstacle found
                 mark = self.find_mark_of_grace()
                 if mark:
                     self.log_msg("Found mark of grace - collecting...")
@@ -267,7 +311,7 @@ class AgilityBot(OSRSBot):
                     self.mouse.click()
                     time.sleep(0.5)
                     self.wait_for_movement_to_stop()
-                    self.last_was_continue = False  # Reset continue status
+                    self.last_was_continue = False
                     continue
 
                 # Then find next obstacle
@@ -289,11 +333,10 @@ class AgilityBot(OSRSBot):
                         self.log_msg("New obstacle found")
                     last_obstacle_pos = current_pos
                     
-                    # If stuck for too long, teleport out
+                    # If stuck for too long, just reset counters
                     if self.stuck_counter > 5:
-                        self.log_msg("Stuck on same obstacle for too long!")
-                        # self.cast_varrock_teleport()
-                        self.cast_camelot_teleport()
+                        self.log_msg("Stuck on same obstacle for too long! ending...")
+                        self.status = BotStatus.STOPPED
                         continue
                     
                     # Click the obstacle with some randomization
@@ -339,13 +382,12 @@ class AgilityBot(OSRSBot):
                         self.log_msg(f"No obstacle or continue square found (count: {self.no_obstacle_count})")
                         self.no_obstacle_count += 1
                         if self.no_obstacle_count > 5:
-                            self.log_msg("No obstacles found for too long!")
+                            self.log_msg("No obstacles found for too long! Resetting counters...")
                             # Take debug screenshot
                             debug_img = self.win.game_view.screenshot()
                             timestamp = time.strftime("%Y%m%d-%H%M%S")
                             cv2.imwrite(f"debug_no_obstacles_{timestamp}.png", debug_img)
-                            if self.course == "Seers":
-                                self.cast_camelot_teleport()
+                            self.no_obstacle_count = 0
                         time.sleep(1.5)
 
                 self.update_progress(0.5)
@@ -354,10 +396,8 @@ class AgilityBot(OSRSBot):
                 self.log_msg(f"Error in main loop: {str(e)}")
                 fails += 1
                 if fails > 5:
-                    self.log_msg("Too many errors, attempting to teleport...")
-                    self.cast_camelot_teleport()
+                    self.log_msg("Too many errors, stopping bot...")
                     self.status = BotStatus.STOPPED
-                    # fails = 0
                 time.sleep(1.5)
 
     def find_next_obstacle(self):
