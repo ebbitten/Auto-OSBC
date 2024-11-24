@@ -330,6 +330,7 @@ class AgilityBot(OSRSBot):
                         timestamp = time.strftime("%Y%m%d-%H%M%S")
                         cv2.imwrite(f"debug_no_obstacles_{timestamp}.png", debug_img)
                         self.log_msg(f"Debug screenshot saved as debug_no_obstacles_{timestamp}.png")
+                        self.status = BotStatus.STOPPED
                         # self.cast_varrock_teleport()
                         # self.cast_camelot_teleport()
                     time.sleep(1.5)
