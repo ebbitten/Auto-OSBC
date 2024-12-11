@@ -55,9 +55,10 @@ class FishingBot(OSRSBot, launcher.Launchable):
         """
         Main fishing loop with improved spot searching and timeout handling
         """
-        # Initialize timing variables outside try block
         start_time = time.time()
         fish_caught = 0
+        last_interaction_time = time.time()
+        consecutive_failures = 0  # Track consecutive failures
         
         try:
             if not self.fishing_spot_img.exists():
@@ -71,6 +72,11 @@ class FishingBot(OSRSBot, launcher.Launchable):
             failed_spot_searches = 0
             
             while time.time() - start_time < end_time:
+                # Check if we've been logged out (no interaction for >5 minutes)
+                if time.time() - last_interaction_time > 300:  # 300 seconds = 5 minutes
+                    self.log_msg("Possible logout detected - no successful interaction for 5 minutes")
+                    return
+
                 # Check if thread should stop
                 if self.should_stop():
                     self.log_msg("Stopping bot - received stop signal")
@@ -81,15 +87,23 @@ class FishingBot(OSRSBot, launcher.Launchable):
                 spot = self.find_fishing_spot()
                 if not spot:
                     failed_spot_searches += 1
+                    consecutive_failures += 1
                     self.log_msg(f"No fishing spot found (attempt #{failed_spot_searches})")
-                    if failed_spot_searches >= 10:  # If we fail to find spots for too long
+                    
+                    # Take screenshot after 5 consecutive failures
+                    if consecutive_failures >= 5:
+                        self.take_debug_screenshot("fishing_failure")
+                        consecutive_failures = 0  # Reset counter after screenshot
+                    
+                    if failed_spot_searches >= 10:
                         self.log_msg("Failed to find spots for too long, resetting search...")
                         failed_spot_searches = 0
-                        time.sleep(2)  # Wait a bit before retrying
+                        time.sleep(2)
                     time.sleep(1)
                     continue
                 
-                # Reset counter since we found a spot
+                # Reset failure counters on success
+                consecutive_failures = 0
                 failed_spot_searches = 0
                     
                 # Click the spot
@@ -131,6 +145,7 @@ class FishingBot(OSRSBot, launcher.Launchable):
                         
                     if time.time() - last_action_check >= 1.5:
                         if self.is_player_doing_action("Fishing"):
+                            last_interaction_time = time.time()  # Reset timer when we confirm fishing
                             not_fishing_count = 0
                             fish_caught += 1
                             self.log_msg(f"Still fishing... Fish caught: {fish_caught}")
@@ -138,6 +153,10 @@ class FishingBot(OSRSBot, launcher.Launchable):
                             not_fishing_count += 1
                             self.log_msg(f"Not fishing check #{not_fishing_count}")
                             if not_fishing_count >= 2:
+                                # If we fail to fish multiple times, check if we're logged out
+                                if not self.is_logged_in():
+                                    self.log_msg("Detected logout - stopping bot")
+                                    return
                                 self.log_msg("No longer fishing, looking for new spot...")
                                 break
                         last_action_check = time.time()
@@ -215,3 +234,34 @@ class FishingBot(OSRSBot, launcher.Launchable):
         
         # If no better spot found, use the first one
         return spot.random_point()
+
+    def is_logged_in(self) -> bool:
+        """
+        Check if we're still logged into the game by looking for typical game UI elements
+        """
+        try:
+            # You can customize these checks based on your UI setup
+            # For example, look for the minimap, inventory, or other persistent UI elements
+            inventory = imsearch.search_img_in_rect(
+                imsearch.BOT_IMAGES.joinpath("inventory_tab.png"),
+                self.win.control_panel,
+                confidence=0.7
+            )
+            return inventory is not None
+        except Exception as e:
+            self.log_msg(f"Error checking login status: {str(e)}")
+            return False
+
+    def take_debug_screenshot(self, reason: str):
+        """
+        Takes a screenshot and saves it with timestamp and reason
+        """
+        try:
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            filename = f"debug_{reason}_{timestamp}.png"
+            
+            # Save screenshot of game view
+            self.win.game_view.screenshot().save(filename)
+            self.log_msg(f"Debug screenshot saved: {filename}")
+        except Exception as e:
+            self.log_msg(f"Error taking debug screenshot: {str(e)}")
