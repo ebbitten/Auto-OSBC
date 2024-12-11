@@ -58,7 +58,7 @@ class FishingBot(OSRSBot, launcher.Launchable):
         start_time = time.time()
         fish_caught = 0
         last_interaction_time = time.time()
-        consecutive_failures = 0  # Track consecutive failures
+        consecutive_failures = 0
         
         try:
             if not self.fishing_spot_img.exists():
@@ -72,11 +72,6 @@ class FishingBot(OSRSBot, launcher.Launchable):
             failed_spot_searches = 0
             
             while time.time() - start_time < end_time:
-                # Check if we've been logged out (no interaction for >5 minutes)
-                if time.time() - last_interaction_time > 300:  # 300 seconds = 5 minutes
-                    self.log_msg("Possible logout detected - no successful interaction for 5 minutes")
-                    return
-
                 # Check if thread should stop
                 if self.should_stop():
                     self.log_msg("Stopping bot - received stop signal")
@@ -93,7 +88,7 @@ class FishingBot(OSRSBot, launcher.Launchable):
                     # Take screenshot after 5 consecutive failures
                     if consecutive_failures >= 5:
                         self.take_debug_screenshot("fishing_failure")
-                        consecutive_failures = 0  # Reset counter after screenshot
+                        consecutive_failures = 0
                     
                     if failed_spot_searches >= 10:
                         self.log_msg("Failed to find spots for too long, resetting search...")
@@ -137,15 +132,14 @@ class FishingBot(OSRSBot, launcher.Launchable):
                 not_fishing_count = 0
                 last_action_check = time.time()
                 
-                while True:  # Changed from timeout-based to continuous checking
-                    # Check if thread should stop
+                while True:
                     if self.should_stop():
                         self.log_msg("Stopping bot - received stop signal")
                         return
                         
                     if time.time() - last_action_check >= 1.5:
                         if self.is_player_doing_action("Fishing"):
-                            last_interaction_time = time.time()  # Reset timer when we confirm fishing
+                            last_interaction_time = time.time()
                             not_fishing_count = 0
                             fish_caught += 1
                             self.log_msg(f"Still fishing... Fish caught: {fish_caught}")
@@ -153,10 +147,6 @@ class FishingBot(OSRSBot, launcher.Launchable):
                             not_fishing_count += 1
                             self.log_msg(f"Not fishing check #{not_fishing_count}")
                             if not_fishing_count >= 2:
-                                # If we fail to fish multiple times, check if we're logged out
-                                if not self.is_logged_in():
-                                    self.log_msg("Detected logout - stopping bot")
-                                    return
                                 self.log_msg("No longer fishing, looking for new spot...")
                                 break
                         last_action_check = time.time()
@@ -172,7 +162,6 @@ class FishingBot(OSRSBot, launcher.Launchable):
             self.log_msg(f"Error in main loop: {str(e)}")
             self.log_msg("Stack trace:", str(e.__traceback__))
         finally:
-            # These variables are now guaranteed to exist
             elapsed_time = (time.time() - start_time) / 60
             self.log_msg(f"Bot stopped after running for {elapsed_time:.1f} minutes")
             self.log_msg(f"Total fish caught: {fish_caught}")
