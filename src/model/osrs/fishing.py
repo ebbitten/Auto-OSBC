@@ -59,6 +59,7 @@ class FishingBot(OSRSBot, launcher.Launchable):
         fish_caught = 0
         last_interaction_time = time.time()
         consecutive_failures = 0
+        last_activity_time = time.time()  # Track when we last did something
         
         try:
             if not self.fishing_spot_img.exists():
@@ -76,6 +77,7 @@ class FishingBot(OSRSBot, launcher.Launchable):
                 if self.should_stop():
                     self.log_msg("Stopping bot - received stop signal")
                     return
+
 
                 # Try to find fishing spot
                 self.log_msg("Searching for fishing spot...")
@@ -105,6 +107,7 @@ class FishingBot(OSRSBot, launcher.Launchable):
                 self.log_msg("Found spot, clicking...")
                 self.mouse.move_to(spot)
                 self.mouse.click()
+                last_activity_time = time.time()  # Reset timer when we click# 
                 
                 # Initial wait for character to start moving
                 time.sleep(2)
@@ -137,6 +140,11 @@ class FishingBot(OSRSBot, launcher.Launchable):
                         self.log_msg("Stopping bot - received stop signal")
                         return
                         
+                    # Force a new spot search every ~4 minutes to prevent logout
+                    if time.time() - last_activity_time > 240:  # 240 seconds = 4 minutes
+                        self.log_msg("Been a while, searching for new spot to prevent logout...")
+                        break  # Break inner loop to find new spot
+                    
                     if time.time() - last_action_check >= 1.5:
                         if self.is_player_doing_action("Fishing"):
                             last_interaction_time = time.time()
