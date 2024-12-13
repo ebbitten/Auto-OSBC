@@ -1,7 +1,6 @@
 import time
 
 import utilities.color as clr
-from model.bot import BotStatus
 from model.near_reality.nr_bot import NRBot
 from utilities.api.status_socket import StatusSocket
 
@@ -9,7 +8,9 @@ from utilities.api.status_socket import StatusSocket
 class OSNRWoodcutting(NRBot):
     def __init__(self):
         title = "Woodcutting"
-        description = "This bot chops wood. Position your character near some trees, tag them, and press the play button."
+        description = (
+            "This bot chops wood. Position your character near some trees, tag them, and press the play button."
+        )
         super().__init__(bot_title=title, description=description)
         self.running_time = 1
         self.protect_slots = 0
@@ -30,7 +31,9 @@ class OSNRWoodcutting(NRBot):
                 self.logout_on_friends = options[option] == "Yes"
             else:
                 self.log_msg(f"Unknown option: {option}")
-                print("Developer: ensure that the option keys are correct, and that options are being unpacked correctly.")
+                print(
+                    "Developer: ensure that the option keys are correct, and that options are being unpacked correctly."
+                )
                 self.options_set = False
                 return
         self.log_msg(f"Running time: {self.running_time} minutes.")

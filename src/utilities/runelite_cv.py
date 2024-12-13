@@ -5,7 +5,6 @@ TODO: Similarly to OCR, should these functions accept the Rect as an argument an
 the screenshotting/color manipulation here? It would allow each RL Object to be created
 with its Rectangle reference property.
 """
-from typing import List
 
 import cv2
 import numpy as np
@@ -13,7 +12,7 @@ import numpy as np
 from utilities.geometry import Point, RuneLiteObject
 
 
-def extract_objects(image: cv2.Mat) -> List[RuneLiteObject]:
+def extract_objects(image: cv2.Mat) -> list[RuneLiteObject]:
     """
     Given an image of enclosed outlines, this function will extract information
     from each outlined object into a data structure.
@@ -32,7 +31,7 @@ def extract_objects(image: cv2.Mat) -> List[RuneLiteObject]:
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     black_image = np.zeros(mask.shape, dtype="uint8")
     # Extract the objects from each contoured object
-    objs: List[RuneLiteObject] = []
+    objs: list[RuneLiteObject] = []
     for objects in range(len(contours)):
         if len(contours[objects]) > 2:
             # Fill in the outline with white pixels

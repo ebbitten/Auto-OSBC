@@ -1,3 +1,18 @@
+[project]
+name = "osbot_color"
+version = "0.1.0"
+
 [tool.black]
-line-length = 160
-preview = true
+line-length = 120
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+ignore = [
+    "E501",  # line too long
+    "E402",  # module level import not at top of file
+    "F403",  # star imports
+    "F405",  # star import undefined names
+    "F841",  # unused variable
+]

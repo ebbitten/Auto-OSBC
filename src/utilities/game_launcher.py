@@ -4,9 +4,9 @@ import platform
 import shutil
 import subprocess
 import tkinter as tk
+from collections.abc import Callable
 from pathlib import Path
 from tkinter import filedialog
-from typing import Callable, Union
 
 import psutil
 
@@ -41,7 +41,13 @@ def is_program_running(program_name):
     return False
 
 
-def launch_runelite(properties_path: Path, game_title: str, use_profile_manager: bool, profile_name: str = "temp", callback: Callable = print) -> bool:
+def launch_runelite(
+    properties_path: Path,
+    game_title: str,
+    use_profile_manager: bool,
+    profile_name: str = "temp",
+    callback: Callable = print,
+) -> bool:
     """
     Launches the game with the specified RuneLite settings file. If it fails to find the executable, it will prompt the user to locate the executable.
     Args:
@@ -105,7 +111,9 @@ def launch_runelite(properties_path: Path, game_title: str, use_profile_manager:
 
     # If the destination path is None, the user failed to locate the profile manager folder.
     if dst_path is None:
-        callback("Profile list not found. Reset and try again, or manually import a plugin profile into the RL Profile Manager.")
+        callback(
+            "Profile list not found. Reset and try again, or manually import a plugin profile into the RL Profile Manager."
+        )
         return False
 
     shutil.copyfile(src_path, dst_path)
@@ -114,7 +122,9 @@ def launch_runelite(properties_path: Path, game_title: str, use_profile_manager:
     if platform.system() == "Windows":
         subprocess.Popen([EXECPATH, EXECARG1, EXECARG2], creationflags=subprocess.DETACHED_PROCESS)
     else:
-        subprocess.Popen([EXECPATH, EXECARG1, EXECARG2], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        subprocess.Popen(
+            [EXECPATH, EXECARG1, EXECARG2], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True
+        )
     callback("Game launched. Please wait until you've logged into the game before starting the bot.")
     return True
 
@@ -136,7 +146,7 @@ def reset_saved_paths(game_title: str, callback: Callable = print):
 
         callback(text=f"{game_title} executable & profile storage paths has been reset.")
     except Exception as e:
-        callback(text=f"An error occurred while resetting the storage paths: {str(e)}")
+        callback(text=f"An error occurred while resetting the storage paths: {e!s}")
 
 
 def __configure_profile_manager(game_title: str, callback: Callable, profile_name: str):
@@ -164,7 +174,9 @@ def __configure_profile_manager(game_title: str, callback: Callable, profile_nam
     profiles_folder_path = pm_data.get(game_title, "")
     if not os.path.exists(profiles_folder_path):
         callback("Profile folder not found. Please locate the folder.")
-        profiles_folder_path = __locate_folder(prompt="IMPORTANT: Select the Profile Manager folder (e.g., C:\\Users\\<user>\\.runelite\\profiles2).")
+        profiles_folder_path = __locate_folder(
+            prompt="IMPORTANT: Select the Profile Manager folder (e.g., C:\\Users\\<user>\\.runelite\\profiles2)."
+        )
         if not profiles_folder_path:
             callback("Folder not selected.")
             return
@@ -181,7 +193,7 @@ def __configure_profile_manager(game_title: str, callback: Callable, profile_nam
             " Manager."
         )
         return
-    with open(profiles_json_path, "r") as f:
+    with open(profiles_json_path) as f:
         profiles: dict = json.load(f)
 
     # We need to record all IDs to ensure we don't create a duplicate
@@ -221,7 +233,7 @@ def __del_key_from_json(filename: str, key: str):
     Deletes the specified key from a JSON file.
     """
     try:
-        with open(filename, "r") as f:
+        with open(filename) as f:
             data = json.load(f)
 
         if key in data:
@@ -237,17 +249,18 @@ def __del_key_from_json(filename: str, key: str):
     except json.JSONDecodeError:
         print(f"File '{filename}' is not valid JSON")
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
+        print(f"Unexpected error: {e!s}")
 
 
-def __locate_executable() -> Union[str, None]:
+def __locate_executable() -> str | None:
     """
     Opens a file dialog to allow the user to locate the game executable.
     """
     root = tk.Tk()
     root.withdraw()
     file_path = filedialog.askopenfilename(
-        title="Select game executable file", filetypes=[("exe files", "*.exe"), ("AppImage files", "*.AppImage"), ("Java files", "*.jar")]
+        title="Select game executable file",
+        filetypes=[("exe files", "*.exe"), ("AppImage files", "*.AppImage"), ("Java files", "*.jar")],
     )
     try:
         if not file_path:
@@ -262,7 +275,7 @@ def __locate_executable() -> Union[str, None]:
     return path_str
 
 
-def __locate_folder(prompt: str) -> Union[str, None]:
+def __locate_folder(prompt: str) -> str | None:
     """
     Opens a folder dialog to allow the user to locate a folder path.
     """
@@ -294,7 +307,7 @@ def __read_json(path: str, touch_file: bool) -> dict:
     """
     # Try to read the file and parse the JSON data
     try:
-        with open(path, "r") as f:
+        with open(path) as f:
             data = json.load(f)
     except (FileNotFoundError, json.decoder.JSONDecodeError):
         data = {}

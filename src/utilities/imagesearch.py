@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Union
 
 import cv2
 
@@ -11,7 +10,7 @@ IMAGES = __PATH.joinpath("images")
 BOT_IMAGES = IMAGES.joinpath("bot")
 
 
-def __imagesearcharea(template: Union[cv2.Mat, str, Path], im: cv2.Mat, confidence: float) -> Rectangle:
+def __imagesearcharea(template: cv2.Mat | str | Path, im: cv2.Mat, confidence: float) -> Rectangle:
     """
     Locates an image within another image.
     Args:
@@ -38,7 +37,7 @@ def __imagesearcharea(template: Union[cv2.Mat, str, Path], im: cv2.Mat, confiden
     return None
 
 
-def search_img_in_rect(image: Union[cv2.Mat, str, Path], rect: Union[Rectangle, cv2.Mat], confidence=0.15) -> Rectangle:
+def search_img_in_rect(image: cv2.Mat | str | Path, rect: Rectangle | cv2.Mat, confidence=0.15) -> Rectangle:
     """
     Searches for an image in a rectangle. This function works with images containing transparency (sprites).
     Args:

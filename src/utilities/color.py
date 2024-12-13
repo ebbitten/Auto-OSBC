@@ -1,11 +1,9 @@
-from typing import List, Union
-
 import cv2
 import numpy as np
 
 
 class Color:
-    def __init__(self, lower: List[int], upper: List[int] = None):
+    def __init__(self, lower: list[int], upper: list[int] = None):
         """
         Defines a color or range of colors. This class converts RGB colors to BGR to satisfy OpenCV's color format.
         Args:
@@ -16,7 +14,7 @@ class Color:
         self.upper = np.array(upper[::-1]) if upper else np.array(lower[::-1])
 
 
-def isolate_colors(image: cv2.Mat, colors: Union[Color, List[Color]]) -> cv2.Mat:
+def isolate_colors(image: cv2.Mat, colors: Color | list[Color]) -> cv2.Mat:
     """
     Isolates ranges of colors within an image and saves a new resulting image.
     Args:

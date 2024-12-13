@@ -6,7 +6,6 @@ import pyautogui as pag
 import pytweening
 from pyclick import HumanCurve
 
-import utilities.debug as debug
 import utilities.imagesearch as imsearch
 from utilities.geometry import Point, Rectangle
 from utilities.random_util import truncated_normal_sample
@@ -134,8 +133,13 @@ class Mouse:
         rect2 = self.__rect_around_point(mouse_pos_to, CLICK_SPRITE_WIDTH_HALF)
 
         # Combine two rects into a bigger rectangle
-        top_left_pos = Point(min(rect1.get_top_left().x, rect2.get_top_left().x), min(rect1.get_top_left().y, rect2.get_top_left().y))
-        bottom_right_pos = Point(max(rect1.get_bottom_right().x, rect2.get_bottom_right().x), max(rect1.get_bottom_right().y, rect2.get_bottom_right().y))
+        top_left_pos = Point(
+            min(rect1.get_top_left().x, rect2.get_top_left().x), min(rect1.get_top_left().y, rect2.get_top_left().y)
+        )
+        bottom_right_pos = Point(
+            max(rect1.get_bottom_right().x, rect2.get_bottom_right().x),
+            max(rect1.get_bottom_right().y, rect2.get_bottom_right().y),
+        )
         cursor_sct = Rectangle.from_points(top_left_pos, bottom_right_pos).screenshot()
 
         for click_sprite in ["red_1.png", "red_3.png", "red_2.png", "red_4.png"]:

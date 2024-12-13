@@ -1,21 +1,18 @@
 import time
-import threading
 
-from src.utilities.api import item_ids as ids
 import src.utilities.color as clr
 import src.utilities.random_util as rd
 from src.model.osrs.osrs_bot import OSRSBot
-from src.model.runelite_bot import BotStatus
+from src.utilities.api import item_ids as ids
 from src.utilities.api.events_client import EventsAPIClient
-from src.utilities.api.events_server import start_server_thread, EventsAPIHandler
+from src.utilities.api.events_server import start_server_thread
 from src.utilities.geometry import RuneLiteObject
+
 
 class OSRSWoodcutter(OSRSBot):
     def __init__(self):
         bot_title = "Woodcutter"
-        description = (
-            "This bot power-chops wood. Position your character near some trees, tag them, and press Play.\nTHIS SCRIPT IS AN EXAMPLE, DO NOT USE LONGTERM."
-        )
+        description = "This bot power-chops wood. Position your character near some trees, tag them, and press Play.\nTHIS SCRIPT IS AN EXAMPLE, DO NOT USE LONGTERM."
         super().__init__(bot_title=bot_title, description=description)
         self.running_time = 1
         self.take_breaks = False
@@ -42,7 +39,9 @@ class OSRSWoodcutter(OSRSBot):
                 self.take_breaks = options[option] != []
             else:
                 self.log_msg(f"Unknown option: {option}")
-                print("Developer: ensure that the option keys are correct, and that options are being unpacked correctly.")
+                print(
+                    "Developer: ensure that the option keys are correct, and that options are being unpacked correctly."
+                )
                 self.options_set = False
                 return
         self.log_msg(f"Running time: {self.running_time} minutes.")
@@ -91,7 +90,10 @@ class OSRSWoodcutter(OSRSBot):
                 self.__drop_logs()
 
             # If our mouse isn't hovering over a tree, and we can't find another tree...
-            if not self.mouseover_text(contains="Chop", color=clr.OFF_WHITE) and not self.__move_mouse_to_nearest_tree():
+            if (
+                not self.mouseover_text(contains="Chop", color=clr.OFF_WHITE)
+                and not self.__move_mouse_to_nearest_tree()
+            ):
                 failed_searches += 1
                 if failed_searches % 10 == 0:
                     self.log_msg("Searching for trees...")

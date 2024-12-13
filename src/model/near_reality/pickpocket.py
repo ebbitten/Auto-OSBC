@@ -1,16 +1,13 @@
 import time
-from typing import List
 
-import pyautogui as pag
 import pytweening
 
 import utilities.api.item_ids as item_ids
 import utilities.color as clr
 import utilities.imagesearch as imsearch
-from model.bot import BotStatus
 from model.near_reality.nr_bot import NRBot
 from utilities.api.status_socket import StatusSocket
-from utilities.geometry import Point, RuneLiteObject
+from utilities.geometry import RuneLiteObject
 
 
 class NRPickpocket(NRBot):
@@ -36,7 +33,9 @@ class NRPickpocket(NRBot):
             "Where is the pickpocket option?",
             ["Left-click", "2nd option", "3rd option"],
         )
-        self.options_builder.add_dropdown_option("should_click_coin_pouch", "Does this NPC drop coin pouches?", ["Yes", "No"])
+        self.options_builder.add_dropdown_option(
+            "should_click_coin_pouch", "Does this NPC drop coin pouches?", ["Yes", "No"]
+        )
         self.options_builder.add_dropdown_option("should_drop_inv", "Drop inventory?", ["Yes", "No"])
         self.options_builder.add_slider_option("protect_rows", "If dropping, protect rows?", 0, 6)
 
@@ -81,7 +80,9 @@ class NRPickpocket(NRBot):
                 self.log_msg(f"Protecting first {self.protect_rows} row(s) when dropping inventory.")
             else:
                 self.log_msg(f"Unknown option: {option}")
-                print("Developer: ensure that the option keys are correct, and that options are being unpacked correctly.")
+                print(
+                    "Developer: ensure that the option keys are correct, and that options are being unpacked correctly."
+                )
                 self.options_set = False
                 return
         self.options_set = True
@@ -154,7 +155,9 @@ class NRPickpocket(NRBot):
                 npc_search_fail_count += 1
                 time.sleep(1)
                 if npc_search_fail_count > 39:
-                    self.__logout(f"No NPC found for {npc_search_fail_count} seconds. Bot ran for {(time.time() - start_time) / 60} minutes.")
+                    self.__logout(
+                        f"No NPC found for {npc_search_fail_count} seconds. Bot ran for {(time.time() - start_time) / 60} minutes."
+                    )
 
             # Click coin pouch
             stack_size = api.get_inv_item_stack_amount(item_ids.coin_pouches)

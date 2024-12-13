@@ -1,13 +1,14 @@
-import time
-import sys
 import os
+import sys
+import time
 
 # Add the project root directory to the Python path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, project_root)
 
 from src.utilities.api.events_client import EventsAPIClient
-from src.utilities.api.events_server import start_server_thread, EventsAPIHandler
+from src.utilities.api.events_server import EventsAPIHandler, start_server_thread
+
 
 def test_events_api_client():
     # Start the server thread
@@ -28,7 +29,7 @@ def test_events_api_client():
             "mouse": {"x": 500, "y": 300},
             "npc name": "Goblin",
             "npc health": 10,
-            "latest msg": "Welcome to RuneScape!"
+            "latest msg": "Welcome to RuneScape!",
         },
         "inv": {
             "inventory": [
@@ -46,7 +47,7 @@ def test_events_api_client():
         "equip": [
             {"id": 1355, "quantity": 1},  # Axe equipped
             # ... (other equipped items)
-        ]
+        ],
     }
 
     # Player Data
@@ -91,6 +92,7 @@ def test_events_api_client():
     print(f"XP gained: {result}")
 
     print("\nAll tests completed.")
+
 
 if __name__ == "__main__":
     test_events_api_client()

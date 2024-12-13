@@ -1,13 +1,15 @@
 """
 Serves as the mediator between a bot and the UI. Methods should likely not be modified.
 """
+
 import importlib
 import sys
+
 from model.bot import Bot, BotStatus
 from view.bot_view import BotView
 
 
-class BotController(object):
+class BotController:
     def __init__(self, model, view):
         """
         Constructor.
@@ -35,7 +37,7 @@ class BotController(object):
             # Transfer necessary state
             new_model.set_controller(self)
             new_model.options_set = self.model.options_set
-            if hasattr(self.model, 'options'):
+            if hasattr(self.model, "options"):
                 new_model.save_options(self.model.options)
             # Replace model
             self.model = new_model
@@ -140,7 +142,7 @@ class BotController(object):
         self.clear_log()
 
 
-class MockBotController(object):
+class MockBotController:
     def __init__(self, model):
         """
         A mock controller for testing purposes. Allows you to run a bot without a UI.

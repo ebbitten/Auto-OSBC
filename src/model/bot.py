@@ -2,6 +2,7 @@
 A Bot is a base class for bot script models. It is abstract and cannot be instantiated. Many of the methods in this base class are
 pre-implemented and can be used by subclasses, or called by the controller. Code in this class should not be modified.
 """
+
 import ctypes
 import platform
 import re
@@ -10,13 +11,11 @@ import time
 import warnings
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Union
 
 import customtkinter
 import numpy as np
 import pyautogui as pag
 import pytweening
-from deprecated import deprecated
 
 import utilities.color as clr
 import utilities.debug as debug
@@ -119,11 +118,14 @@ class Bot(ABC):
     @abstractmethod
     def save_options(self, options: dict):
         """
-        Saves a dictionary of options as properties of the bot.
+        Saves a dictionary of options as properties of the bot and persists them to disk.
         Args:
             options: dict - dictionary of options to save
         """
-        pass
+        try:
+            self.settings_manager.save_bot_settings(self.bot_title, options)
+        except Exception as e:
+            self.log_msg(f"Error saving settings: {e}")
 
     def get_options_view(self, parent) -> customtkinter.CTkFrame:
         """
@@ -233,7 +235,7 @@ class Bot(ABC):
         self.controller.clear_log()
 
     # --- Misc Utility Functions
-    def drop_all(self, skip_rows: int = 0, skip_slots: List[int] = None) -> None:
+    def drop_all(self, skip_rows: int = 0, skip_slots: list[int] = None) -> None:
         """
         Shift-clicks all items in the inventory to drop them.
         Args:
@@ -264,7 +266,7 @@ class Bot(ABC):
             self.mouse.click()
         pag.keyUp("shift")
 
-    def drop(self, slots: List[int]) -> None:
+    def drop(self, slots: list[int]) -> None:
         """
         Shift-clicks inventory slots to drop items.
         Args:
@@ -397,9 +399,9 @@ class Bot(ABC):
 
     def mouseover_text(
         self,
-        contains: Union[str, List[str]] = None,
-        color: Union[clr.Color, List[clr.Color]] = None,
-    ) -> Union[bool, str]:
+        contains: str | list[str] = None,
+        color: clr.Color | list[clr.Color] = None,
+    ) -> bool | str:
         """
         Examines the mouseover text area.
         Args:
@@ -423,7 +425,7 @@ class Bot(ABC):
             return ocr.extract_text(self.win.mouseover, ocr.BOLD_12, color)
         return bool(ocr.find_text(contains, self.win.mouseover, ocr.BOLD_12, color))
 
-    def chatbox_text(self, contains: str = None) -> Union[bool, str]:
+    def chatbox_text(self, contains: str = None) -> bool | str:
         """
         Examines the chatbox for text. Currently only captures player chat text.
         Args:
@@ -550,7 +552,20 @@ class Bot(ABC):
 
         # It is important to keep ambiguous words at the end of the list so that they are matched as a last resort
         styles = {
-            "accurate": ["Accurate", "Short fuse", "Punch", "Chop", "Jab", "Stab", "Spike", "Reap", "Bash", "Flick", "Pound", "Pummel"],
+            "accurate": [
+                "Accurate",
+                "Short fuse",
+                "Punch",
+                "Chop",
+                "Jab",
+                "Stab",
+                "Spike",
+                "Reap",
+                "Bash",
+                "Flick",
+                "Pound",
+                "Pummel",
+            ],
             "aggressive": ["Kick", "Smash", "Hack", "Swipe", "Slash", "Impale", "Lunge", "Pummel", "Chop", "Pound"],
             "defensive": ["Block", "Fend", "Focus", "Deflect"],
             "controlled": ["Spike", "Lash", "Lunge", "Jab"],
@@ -569,7 +584,9 @@ class Bot(ABC):
             if result := ocr.find_text(style, self.win.control_panel, ocr.PLAIN_11, clr.OFF_ORANGE):
                 # If the word is found, draw a rectangle around it and click a random point in that rectangle
                 center = result[0].get_center()
-                rect = Rectangle.from_points(Point(center[0] - 32, center[1] - 34), Point(center[0] + 32, center[1] + 10))
+                rect = Rectangle.from_points(
+                    Point(center[0] - 32, center[1] - 34), Point(center[0] + 32, center[1] + 10)
+                )
                 self.mouse.move_to(rect.random_point(), mouseSpeed="fastest")
                 self.mouse.click()
                 self.log_msg(f"Combat style {combat_style} selected.")
@@ -586,12 +603,16 @@ class Bot(ABC):
         self.log_msg(f"Toggling run {state}...")
 
         if toggle_on:
-            if run_status := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("run_off.png"), self.win.run_orb, 0.323):
+            if run_status := imsearch.search_img_in_rect(
+                imsearch.BOT_IMAGES.joinpath("run_off.png"), self.win.run_orb, 0.323
+            ):
                 self.mouse.move_to(run_status.random_point())
                 self.mouse.click()
             else:
                 self.log_msg("Run is already on.")
-        elif run_status := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("run_on.png"), self.win.run_orb, 0.323):
+        elif run_status := imsearch.search_img_in_rect(
+            imsearch.BOT_IMAGES.joinpath("run_on.png"), self.win.run_orb, 0.323
+        ):
             self.mouse.move_to(run_status.random_point())
             self.mouse.click()
         else:

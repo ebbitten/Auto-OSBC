@@ -1,11 +1,9 @@
 import time
-from typing import List
 
 import utilities.color as clr
-from model.bot import BotStatus
 from model.near_reality.nr_bot import NRBot
 from utilities.api.status_socket import StatusSocket
-from utilities.geometry import Rectangle, RuneLiteObject
+from utilities.geometry import RuneLiteObject
 
 
 class NRMining(NRBot):
@@ -31,7 +29,9 @@ class NRMining(NRBot):
                 self.logout_on_friends = options[option] == "Yes"
             else:
                 self.log_msg(f"Unknown option: {option}")
-                print("Developer: ensure that the option keys are correct, and that options are being unpacked correctly.")
+                print(
+                    "Developer: ensure that the option keys are correct, and that options are being unpacked correctly."
+                )
                 self.options_set = False
                 return
         self.log_msg(f"Running time: {self.running_time} minutes.")
@@ -64,7 +64,7 @@ class NRMining(NRBot):
                 self.__logout("Friends nearby. Logging out.")
 
             # Get the rocks
-            rocks: List[RuneLiteObject] = self.get_all_tagged_in_rect(self.win.game_view, clr.PINK)
+            rocks: list[RuneLiteObject] = self.get_all_tagged_in_rect(self.win.game_view, clr.PINK)
             if not rocks:
                 failed_searches += 1
                 if failed_searches > 5:

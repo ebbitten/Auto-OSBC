@@ -7,5 +7,5 @@ __all__ = [
     # "CombatBot",
     # "WoodcutterBot",
     "AgilityBot",
-    "FishingBot"
+    "FishingBot",
 ]

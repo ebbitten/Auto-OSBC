@@ -45,7 +45,9 @@ class InfoFrame(customtkinter.CTkFrame):
         self.lbl_script_title.grid(column=0, row=0, sticky="wns", padx=20, pady=15)
 
         # -- script description
-        self.lbl_script_desc = customtkinter.CTkLabel(master=self, text=info, font=body_med_font(), justify=tkinter.CENTER)
+        self.lbl_script_desc = customtkinter.CTkLabel(
+            master=self, text=info, font=body_med_font(), justify=tkinter.CENTER
+        )
         self.lbl_script_desc.grid(column=0, row=2, sticky="nwes", padx=15)
         self.lbl_script_desc.bind(
             "<Configure>",
@@ -53,7 +55,9 @@ class InfoFrame(customtkinter.CTkFrame):
         )
 
         # -- script progress bar
-        self.lbl_progress = customtkinter.CTkLabel(master=self, text="Progress: 0%", font=small_font(), justify=tkinter.CENTER)
+        self.lbl_progress = customtkinter.CTkLabel(
+            master=self, text="Progress: 0%", font=small_font(), justify=tkinter.CENTER
+        )
         self.lbl_progress.grid(row=4, column=0, pady=(15, 0), sticky="ew")
 
         self.progressbar = customtkinter.CTkProgressBar(master=self)
@@ -102,7 +106,9 @@ class InfoFrame(customtkinter.CTkFrame):
             image=self.img_play,
             command=self.play_btn_clicked,
         )
-        self.btn_play.bind("<Enter>", lambda event: self.btn_play.configure(text=f"{settings.keybind_to_text(self.combination_keys)}"))
+        self.btn_play.bind(
+            "<Enter>", lambda event: self.btn_play.configure(text=f"{settings.keybind_to_text(self.combination_keys)}")
+        )
         self.btn_play.bind("<Leave>", lambda event: self.btn_play.configure(text="Play"))
         self.btn_play.grid(row=1, column=0, pady=(0, 15), sticky="nsew")
 
@@ -116,7 +122,9 @@ class InfoFrame(customtkinter.CTkFrame):
             image=self.img_stop,
             command=self.stop_btn_clicked,
         )
-        self.btn_stop.bind("<Enter>", lambda event: self.btn_stop.configure(text=f"{settings.keybind_to_text(self.combination_keys)}"))
+        self.btn_stop.bind(
+            "<Enter>", lambda event: self.btn_stop.configure(text=f"{settings.keybind_to_text(self.combination_keys)}")
+        )
         self.btn_stop.bind("<Leave>", lambda event: self.btn_stop.configure(text="Stop"))
 
         self.btn_options = customtkinter.CTkButton(
@@ -142,7 +150,9 @@ class InfoFrame(customtkinter.CTkFrame):
         )
         self.btn_launch.configure(state=tkinter.DISABLED)
 
-        self.lbl_status = customtkinter.CTkLabel(master=self, text="Status: Idle", font=small_font(), justify=tkinter.CENTER)
+        self.lbl_status = customtkinter.CTkLabel(
+            master=self, text="Status: Idle", font=small_font(), justify=tkinter.CENTER
+        )
         self.lbl_status.grid(row=5, column=1, pady=(0, 15), sticky="we")
 
         self.controller = None

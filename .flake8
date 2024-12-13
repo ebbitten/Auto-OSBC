@@ -1,3 +1,8 @@
 [flake8]
-ignore = E203, SIM907, W503, F405, E501, F403, F401, W605, SIM120, B008, F811, B020
-per-file-ignores = __init__.py:F401,__init__.py:F403
+max-line-length = 120
+exclude = .git,__pycache__,build,dist
+ignore =
+    E402,  # module level import not at top of file
+    N999,  # invalid module name
+    F403,  # 'from module import *' used
+    F405,  # name may be undefined, or defined from star imports

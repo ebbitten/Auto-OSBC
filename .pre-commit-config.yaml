@@ -7,24 +7,23 @@ repos:
       - id: trailing-whitespace
 
   # Black python formatting
-  - repo: https://github.com/ambv/black
-    rev: 22.12.0
+  - repo: https://github.com/psf/black
+    rev: 24.2.0
     hooks:
       - id: black
-        language_version: python3
+        args: [--line-length=120]
 
-  # Flake8
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
+  # Ruff
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.0
     hooks:
-      - id: flake8
-        additional_dependencies:
-          - flake8-bugbear
-          - flake8-comprehensions
-          - flake8-simplify
-
-  # isort
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
-    hooks:
-      - id: isort
+      - id: ruff
+        args: [
+            --fix,
+            --ignore=E501, # line too long
+            --ignore=E402, # module level import not at top of file
+            --ignore=F403, # star imports
+            --ignore=F405, # star import undefined names
+            --ignore=F841, # unused variable
+          ]
+      - id: ruff-format

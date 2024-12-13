@@ -1,10 +1,10 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
     name="os-bot-color",
     version="0.1",
-    packages=find_packages(where='src'),
-    package_dir={'': 'src'},
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     install_requires=[
         "customtkinter",
         "pillow",

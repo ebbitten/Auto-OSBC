@@ -7,13 +7,11 @@ matter where the game client is positioned. This class can be extended to add mo
 At the moment, it only works for 2007-style interfaces. In the future, to accomodate other interface
 styles, this class should be abstracted, then extended for each interface style.
 """
+
 import time
-from typing import List
 
 import pywinctl
-from deprecated import deprecated
 
-import utilities.debug as debug
 import utilities.imagesearch as imsearch
 from utilities.geometry import Point, Rectangle
 
@@ -37,14 +35,14 @@ class Window:
 
     # CP Area
     control_panel: Rectangle = None  # https://i.imgur.com/BeMFCIe.png
-    cp_tabs: List[Rectangle] = []  # https://i.imgur.com/huwNOWa.png
-    inventory_slots: List[Rectangle] = []  # https://i.imgur.com/gBwhAwE.png
-    spellbook_normal: List[Rectangle] = []  # https://i.imgur.com/vkKAfV5.png
-    prayers: List[Rectangle] = []  # https://i.imgur.com/KRmC3YB.png
+    cp_tabs: list[Rectangle] = []  # https://i.imgur.com/huwNOWa.png
+    inventory_slots: list[Rectangle] = []  # https://i.imgur.com/gBwhAwE.png
+    spellbook_normal: list[Rectangle] = []  # https://i.imgur.com/vkKAfV5.png
+    prayers: list[Rectangle] = []  # https://i.imgur.com/KRmC3YB.png
 
     # Chat Area
     chat: Rectangle = None  # https://i.imgur.com/u544ouI.png
-    chat_tabs: List[Rectangle] = []  # https://i.imgur.com/2DH2SiL.png
+    chat_tabs: list[Rectangle] = []  # https://i.imgur.com/2DH2SiL.png
 
     # Minimap Area
     compass_orb: Rectangle = None
@@ -301,7 +299,9 @@ class Window:
             self.spec_orb = Rectangle(left=62 + m.left, top=144 + m.top, width=18, height=20)
             self.spec_orb_text = Rectangle(left=36 + m.left, top=151 + m.top, width=20, height=13)
             self.total_xp = Rectangle(left=m.left - 147, top=m.top + 4, width=104, height=21)
-        elif m := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("ui_templates", "minimap_fixed.png"), client_rect):
+        elif m := imsearch.search_img_in_rect(
+            imsearch.BOT_IMAGES.joinpath("ui_templates", "minimap_fixed.png"), client_rect
+        ):
             self.client_fixed = True
             self.compass_orb = Rectangle(left=31 + m.left, top=7 + m.top, width=24, height=25)
             self.hp_orb_text = Rectangle(left=4 + m.left, top=55 + m.top, width=20, height=13)

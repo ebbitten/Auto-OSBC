@@ -1,10 +1,10 @@
 """
 Requires the Status Socket plugin in RuneLite. Endpoint: "http://localhost:5000".
 """
+
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
-from typing import List, Union
 
 import simplejson as JSON
 
@@ -145,7 +145,7 @@ class StatusSocket:
         """
         return player_data["inventory"]
 
-    def get_inv_item_indices(self, item_id: Union[List[int], int]) -> list:
+    def get_inv_item_indices(self, item_id: list[int] | int) -> list:
         """
         For the given item ID, returns a list of inventory slot indexes that the item exists in.
         Useful for locating items you do not want to drop.
@@ -160,7 +160,7 @@ class StatusSocket:
         elif isinstance(item_id, list):
             return [slot["index"] for slot in inv if slot["id"] in item_id]
 
-    def get_inv_item_stack_amount(self, item_id: Union[int, List[int]]) -> int:
+    def get_inv_item_stack_amount(self, item_id: int | list[int]) -> int:
         """
         For the given item ID, returns the total amount of that item in your inventory.
         This is only useful for items that stack (e.g. coins, runes, etc).

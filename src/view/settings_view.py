@@ -3,7 +3,6 @@ Not much effort is going into this Settings UI, as in the future, we'll likely t
 different UI framework.
 """
 
-
 import contextlib
 import pathlib
 
@@ -46,10 +45,13 @@ class SettingsView(customtkinter.CTkFrame):
         self.frame_keybinds.columnconfigure(0, weight=1)  # lbl label
         self.frame_keybinds.columnconfigure(1, weight=0)  # lbl keybind
         self.frame_keybinds.columnconfigure(2, weight=0)  # btn set
-        self.lbl_keybinds = customtkinter.CTkLabel(master=self.frame_keybinds, text="Bot start/stop keybind: ", font=body_med_font())
+        self.lbl_keybinds = customtkinter.CTkLabel(
+            master=self.frame_keybinds, text="Bot start/stop keybind: ", font=body_med_font()
+        )
         self.lbl_keybinds.grid(row=0, column=0, padx=20, pady=20)
         self.entry_keybinds = customtkinter.CTkLabel(
-            master=self.frame_keybinds, text=f"{settings.keybind_to_text(self.current_keys) if self.current_keys else 'None'}"
+            master=self.frame_keybinds,
+            text=f"{settings.keybind_to_text(self.current_keys) if self.current_keys else 'None'}",
         )
         self.entry_keybinds.grid(row=0, column=1, padx=20, pady=20)
         self.btn_keybinds = customtkinter.CTkButton(
@@ -84,7 +86,9 @@ class SettingsView(customtkinter.CTkFrame):
             widget_list[i].grid(row=i, column=0, columnspan=2, sticky="nsew", padx=20, pady=20)
 
         # Save button
-        self.btn_save = customtkinter.CTkButton(master=self, text="Save", font=button_med_font(), command=lambda: self.save(window=parent))
+        self.btn_save = customtkinter.CTkButton(
+            master=self, text="Save", font=button_med_font(), command=lambda: self.save(window=parent)
+        )
         self.btn_save.grid(row=self.num_of_widgets + 2, column=0, columnspan=2, pady=20, padx=20)
 
     def __modify_keybind(self):

@@ -10,20 +10,19 @@ For converting RGB to HSV:
 Item ID Database:
     https://www.runelocus.com/tools/osrs-item-id-list/
 """
+
 import time
 from abc import ABCMeta
-from typing import List, Union
 
 import pyautogui as pag
 from deprecated import deprecated
 
 import utilities.color as clr
-import utilities.debug as debug
 import utilities.imagesearch as imsearch
 import utilities.ocr as ocr
 import utilities.runelite_cv as rcv
-from model.bot import Bot, BotStatus
-from utilities.geometry import Point, Rectangle, RuneLiteObject
+from model.bot import Bot
+from utilities.geometry import Rectangle, RuneLiteObject
 from utilities.window import Window
 
 
@@ -113,7 +112,7 @@ class RuneLiteBot(Bot, metaclass=ABCMeta):
         """
         return ocr.find_text(action, self.win.current_action, ocr.PLAIN_12, clr.GREEN)
 
-    def pick_up_loot(self, items: Union[str, List[str]], supress_warning=True) -> bool:
+    def pick_up_loot(self, items: str | list[str], supress_warning=True) -> bool:
         """
         Attempts to pick up a single purple loot item off the ground. It is your responsibility to ensure you have
         enough inventory space to pick up the item. The item closest to the game view center is picked up first.
@@ -207,7 +206,7 @@ class RuneLiteBot(Bot, metaclass=ABCMeta):
                 return obj
         return None
 
-    def get_all_tagged_in_rect(self, rect: Rectangle, color: clr.Color) -> List[RuneLiteObject]:
+    def get_all_tagged_in_rect(self, rect: Rectangle, color: clr.Color) -> list[RuneLiteObject]:
         """
         Finds all contours on screen of a particular color and returns a list of Shapes.
         Args:
@@ -238,7 +237,9 @@ class RuneLiteBot(Bot, metaclass=ABCMeta):
             return None
 
     # --- Client Settings ---
-    @deprecated(reason="This method is no longer needed for RuneLite games that can launch with arguments through the OSBC client.")
+    @deprecated(
+        reason="This method is no longer needed for RuneLite games that can launch with arguments through the OSBC client."
+    )
     def logout_runelite(self):
         """
         Identifies the RuneLite logout button and clicks it.

@@ -49,15 +49,23 @@ class SpriteScraperView(customtkinter.CTkFrame):
         self.radio_group.grid_rowconfigure(3, weight=1)
 
         # -- Radio Group Label
-        self.lbl_radio_group = customtkinter.CTkLabel(master=self.radio_group, text="Select the type of sprites to download")
+        self.lbl_radio_group = customtkinter.CTkLabel(
+            master=self.radio_group, text="Select the type of sprites to download"
+        )
         self.lbl_radio_group.grid(row=0, column=0, columnspan=4, sticky="nsew", padx=10, pady=(10, 0))
 
         self.radio_var = tkinter.IntVar(self)
 
         # -- Radio Buttons
-        self.radio_normal = customtkinter.CTkRadioButton(master=self.radio_group, text="", variable=self.radio_var, value=0)
-        self.radio_bank = customtkinter.CTkRadioButton(master=self.radio_group, text="", variable=self.radio_var, value=1)
-        self.radio_both = customtkinter.CTkRadioButton(master=self.radio_group, text="", variable=self.radio_var, value=2)
+        self.radio_normal = customtkinter.CTkRadioButton(
+            master=self.radio_group, text="", variable=self.radio_var, value=0
+        )
+        self.radio_bank = customtkinter.CTkRadioButton(
+            master=self.radio_group, text="", variable=self.radio_var, value=1
+        )
+        self.radio_both = customtkinter.CTkRadioButton(
+            master=self.radio_group, text="", variable=self.radio_var, value=2
+        )
         self.radio_normal.grid(row=1, column=0, sticky="e", padx=10, pady=10)
         self.radio_bank.grid(row=2, column=0, sticky="e", padx=10, pady=10)
         self.radio_both.grid(row=3, column=0, sticky="e", padx=10, pady=(10, 20))
@@ -98,7 +106,11 @@ class SpriteScraperView(customtkinter.CTkFrame):
         search_string = self.search_entry.get()
         thread = threading.Thread(
             target=scraper.search_and_download,
-            kwargs={"search_string": search_string, "image_type": self.radio_var.get(), "notify_callback": self.update_log},
+            kwargs={
+                "search_string": search_string,
+                "image_type": self.radio_var.get(),
+                "notify_callback": self.update_log,
+            },
             daemon=True,
         )
         self.search_entry.delete(0, "end")

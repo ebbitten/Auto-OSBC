@@ -1,6 +1,5 @@
 import pathlib
 from operator import itemgetter
-from typing import Dict, List, Union
 
 import cv2
 import numpy as np
@@ -73,7 +72,7 @@ problematic_chars = [
 ]
 
 
-def __load_font(font: str) -> Dict[str, cv2.Mat]:
+def __load_font(font: str) -> dict[str, cv2.Mat]:
     """
     Loads a font's alphabet from the fonts directory into a dictionary.
     Args:
@@ -99,7 +98,9 @@ QUILL = __load_font("Quill")  # Large bold quest text
 QUILL_8 = __load_font("Quill8")  # Small quest text
 
 
-def extract_text(rect: Rectangle, font: dict, color: Union[clr.Color, List[clr.Color]], exclude_chars: Union[str, List[str]] = problematic_chars) -> str:
+def extract_text(
+    rect: Rectangle, font: dict, color: clr.Color | list[clr.Color], exclude_chars: str | list[str] = problematic_chars
+) -> str:
     """
     Extracts text from a Rectangle.
     Args:
@@ -126,7 +127,7 @@ def extract_text(rect: Rectangle, font: dict, color: Union[clr.Color, List[clr.C
         # Locate the start point for each instance of this character
         y_mins, x_mins = np.where(correlation >= 0.98)
         # For each instance of this character, add it to the list
-        char_list.extend([key, x, y] for x, y in zip(x_mins, y_mins))
+        char_list.extend([key, x, y] for x, y in zip(x_mins, y_mins, strict=False))
     # Sort the char list based on which ones appear closest to the top-left of the image
     char_list = sorted(char_list, key=itemgetter(2, 1))
     # Join the charachers into a string
@@ -134,11 +135,11 @@ def extract_text(rect: Rectangle, font: dict, color: Union[clr.Color, List[clr.C
 
 
 def find_text(
-    text: Union[str, List[str]],
+    text: str | list[str],
     rect: Rectangle,
     font: dict,
-    color: Union[clr.Color, List[clr.Color]],
-) -> List[Rectangle]:
+    color: clr.Color | list[clr.Color],
+) -> list[Rectangle]:
     """
     Searches for exact text within a Rectangle. Input text is case sensitive.
     Args:
@@ -165,14 +166,14 @@ def find_text(
             continue
         correlation = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
         y_mins, x_mins = np.where(correlation >= 0.98)
-        char_list.extend([char, x, y] for x, y in zip(x_mins, y_mins))
+        char_list.extend([char, x, y] for x, y in zip(x_mins, y_mins, strict=False))
 
     # Sort the char list based on which ones appear closest to the top-left of the image
     char_list = sorted(char_list, key=itemgetter(2, 1))
 
     haystack = "".join(char[0] for char in char_list)
 
-    words_found: List[Rectangle] = []
+    words_found: list[Rectangle] = []
 
     if isinstance(text, str):
         text = [text]

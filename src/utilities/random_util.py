@@ -2,7 +2,6 @@ import math
 import random
 import secrets
 from datetime import datetime
-from typing import List, Union
 
 import numpy as np
 
@@ -25,7 +24,7 @@ def random_seeds(mod: int = 0, start: int = 8, stop: int = 12):
     return [[random.uniform(0.000, 1.000), random.uniform(0.000, 1.000)] for _ in range(sg.randrange(start, stop))]
 
 
-def random_point_in(x_min, y_min, width, height, seeds: List[List[int]]) -> List[int]:
+def random_point_in(x_min, y_min, width, height, seeds: list[list[int]]) -> list[int]:
     """
     Returns a random pixel within some bounding box based on a list of seeds.
     Args:
@@ -68,7 +67,7 @@ def random_point_in(x_min, y_min, width, height, seeds: List[List[int]]) -> List
     return __random_from(start_x, start_y, inner_inner_width, inner_inner_height, centered=False)
 
 
-def __random_from(x_min, y_min, width, height, centered: bool = True) -> List[int]:
+def __random_from(x_min, y_min, width, height, centered: bool = True) -> list[int]:
     """
     Helper function to generate a random pixel within some bounding box. The bounding box can be
     centered on the x_min and y_min coordinates, or the bounding box can be offset from the x_min

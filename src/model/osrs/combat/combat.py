@@ -22,7 +22,9 @@ class OSRSCombat(OSRSBot, launcher.Launchable):
 
     def create_options(self):
         self.options_builder.add_slider_option("running_time", "How long to run (minutes)?", 1, 500)
-        self.options_builder.add_text_edit_option("loot_items", "Loot items (requires re-launch):", "E.g., Coins, Dragon bones")
+        self.options_builder.add_text_edit_option(
+            "loot_items", "Loot items (requires re-launch):", "E.g., Coins, Dragon bones"
+        )
         self.options_builder.add_slider_option("hp_threshold", "Low HP threshold (0-100)?", 0, 100)
 
     def save_options(self, options: dict):
@@ -35,7 +37,9 @@ class OSRSCombat(OSRSBot, launcher.Launchable):
                 self.hp_threshold = options[option]
             else:
                 self.log_msg(f"Unknown option: {option}")
-                print("Developer: ensure that the option keys are correct, and that options are being unpacked correctly.")
+                print(
+                    "Developer: ensure that the option keys are correct, and that options are being unpacked correctly."
+                )
                 self.options_set = False
                 return
 
@@ -82,7 +86,9 @@ class OSRSCombat(OSRSBot, launcher.Launchable):
         )
 
     def main_loop(self):
-        self.log_msg("WARNING: This script is for testing and may not be safe for personal use. Please modify it to suit your needs.")
+        self.log_msg(
+            "WARNING: This script is for testing and may not be safe for personal use. Please modify it to suit your needs."
+        )
 
         # Setup API
         api_morg = MorgHTTPSocket()

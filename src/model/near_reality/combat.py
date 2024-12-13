@@ -1,6 +1,5 @@
 import time
 
-from model.bot import BotStatus
 from model.near_reality.nr_bot import NRBot
 from utilities.api.status_socket import StatusSocket
 from utilities.geometry import RuneLiteObject
@@ -28,7 +27,9 @@ class NRCombat(NRBot):
                 self.log_msg(f"Running time: {self.running_time} minutes.")
             else:
                 self.log_msg(f"Unknown option: {option}")
-                print("Developer: ensure that the option keys are correct, and that options are being unpacked correctly.")
+                print(
+                    "Developer: ensure that the option keys are correct, and that options are being unpacked correctly."
+                )
                 self.options_set = False
                 return
         self.log_msg(f"Bot will run for {self.running_time} minutes.")

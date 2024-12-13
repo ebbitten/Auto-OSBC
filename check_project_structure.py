@@ -1,10 +1,12 @@
+import importlib
 import os
 import sys
-import importlib
 from pathlib import Path
+
 
 def check_file_exists(file_path):
     return os.path.exists(file_path)
+
 
 def check_import(module_name):
     try:
@@ -13,23 +15,24 @@ def check_import(module_name):
     except ImportError:
         return False
 
+
 def main():
     project_root = Path(__file__).parent.absolute()
-    src_dir = project_root / 'src'
+    src_dir = project_root / "src"
 
     print("Checking project structure and imports...")
 
     # Check for necessary files
     files_to_check = [
-        project_root / '__init__.py',
-        project_root / 'setup.py',
-        project_root / 'requirements.txt',
-        src_dir / '__init__.py',
-        src_dir / 'OSBY.py',
-        src_dir / 'utilities' / '__init__.py',
-        src_dir / 'utilities' / 'api' / '__init__.py',
-        src_dir / 'utilities' / 'api' / 'events_server.py',
-        src_dir / 'utilities' / 'api' / 'events_client.py',
+        project_root / "__init__.py",
+        project_root / "setup.py",
+        project_root / "requirements.txt",
+        src_dir / "__init__.py",
+        src_dir / "OSBY.py",
+        src_dir / "utilities" / "__init__.py",
+        src_dir / "utilities" / "api" / "__init__.py",
+        src_dir / "utilities" / "api" / "events_server.py",
+        src_dir / "utilities" / "api" / "events_client.py",
     ]
 
     for file_path in files_to_check:
@@ -44,9 +47,9 @@ def main():
 
     # Check imports
     imports_to_check = [
-        'utilities.settings',
-        'utilities.api.events_server',
-        'utilities.api.events_client',
+        "utilities.settings",
+        "utilities.api.events_server",
+        "utilities.api.events_client",
     ]
 
     for module_name in imports_to_check:
@@ -56,6 +59,7 @@ def main():
             print(f"❌ Failed to import {module_name}")
 
     print("\nProject check completed.")
+
 
 if __name__ == "__main__":
     main()

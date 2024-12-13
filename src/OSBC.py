@@ -1,8 +1,7 @@
 import importlib
 import pathlib
-import tkinter
 import sys
-from typing import List
+import tkinter
 
 # Add the project root to the Python path
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent.absolute()))
@@ -12,16 +11,14 @@ from PIL import Image, ImageTk
 from pynput import keyboard
 from tktooltip import ToolTip
 
-from utilities import settings
 from controller.bot_controller import BotController, MockBotController
 from model import Bot, RuneLiteBot
+from utilities import settings
+
+# Import the EventsAPI server and client
 from utilities.game_launcher import Launchable
 from view import *
 from view.fonts.fonts import *
-
-# Import the EventsAPI server and client
-from utilities.api.events_server import start_server_thread
-from utilities.api.events_client import EventsAPIClient
 
 customtkinter.set_appearance_mode("Dark")  # Modes: "System" (standard), "Dark", "Light"
 customtkinter.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
@@ -105,7 +102,9 @@ class App(customtkinter.CTk):
         self.label_1.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
         # Create Scrollable Frame
-        self.scrollable_frame_left = customtkinter.CTkScrollableFrame(master=self.frame_left, width=160, fg_color="#2b2b2b", scrollbar_button_color="#333333")
+        self.scrollable_frame_left = customtkinter.CTkScrollableFrame(
+            master=self.frame_left, width=160, fg_color="#2b2b2b", scrollbar_button_color="#333333"
+        )
         self.scrollable_frame_left.grid(row=2, column=0, sticky="nsew", padx=5, pady=5)
 
         # ============ Bot/Button Configuration (scrollable_frame_left) ============
@@ -115,7 +114,7 @@ class App(customtkinter.CTk):
         # Button map
         # Key value pairs of game titles and a list of buttons for that game.
         # This is populated below.
-        self.btn_map: dict[str, List[customtkinter.CTkButton]] = {
+        self.btn_map: dict[str, list[customtkinter.CTkButton]] = {
             "Select a game": [],
         }
 
@@ -137,7 +136,9 @@ class App(customtkinter.CTk):
                 instance = obj()
                 # Make a home view if one doesn't exist
                 if isinstance(instance, RuneLiteBot) and instance.game_title not in self.views:
-                    self.views[instance.game_title] = RuneLiteHomeView(parent=self, main=self, game_title=instance.game_title)
+                    self.views[instance.game_title] = RuneLiteHomeView(
+                        parent=self, main=self, game_title=instance.game_title
+                    )
                 elif isinstance(instance, Bot) and instance.game_title not in self.views:
                     self.views[instance.game_title] = HomeView(parent=self, main=self, game_title=instance.game_title)
                 # Make a button section if one doesn't exist
@@ -145,7 +146,9 @@ class App(customtkinter.CTk):
                     self.btn_map[instance.game_title] = []
                 instance.set_controller(self.controller)
                 self.models[name] = instance
-                self.btn_map[instance.game_title].append(self.__create_button(bot_key=name, launchable=isinstance(instance, Launchable)))
+                self.btn_map[instance.game_title].append(
+                    self.__create_button(bot_key=name, launchable=isinstance(instance, Launchable))
+                )
 
         # Configure the dropdown values to be list(self.btn_map.keys())
         self.menu_game_selector.configure(values=list(self.btn_map.keys()))
@@ -165,7 +168,7 @@ class App(customtkinter.CTk):
         # Status variables to track state of views and buttons
         self.current_home_view: customtkinter.CTkFrame = self.views["Select a game"]
         self.current_btn: customtkinter.CTkButton = None
-        self.current_btn_list: List[customtkinter.CTkButton] = None
+        self.current_btn_list: list[customtkinter.CTkButton] = None
 
     # ============ UI Creation Helpers ============
     def __create_button(self, bot_key: str, launchable: bool = False):

@@ -1,6 +1,7 @@
 """
 Item IDs: https://www.runelocus.com/tools/osrs-item-id-list/
 """
+
 DWARF_REMAINS = 0
 TOOLKIT = 1
 CANNONBALL = 2

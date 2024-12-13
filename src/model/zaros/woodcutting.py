@@ -4,7 +4,6 @@ import pyautogui as pag
 
 import utilities.color as clr
 import utilities.random_util as rd
-from model.bot import BotStatus
 from model.zaros.zaros_bot import ZarosBot
 
 
@@ -35,7 +34,9 @@ class ZarosWoodcutter(ZarosBot):
                 self.logout_on_friends = options[option] == ["Enable"]
             else:
                 self.log_msg(f"Unknown option: {option}")
-                print("Developer: ensure that the option keys are correct, and that options are being unpacked correctly.")
+                print(
+                    "Developer: ensure that the option keys are correct, and that options are being unpacked correctly."
+                )
                 self.options_set = False
                 return
         self.log_msg(f"Running time: {self.running_time} minutes.")

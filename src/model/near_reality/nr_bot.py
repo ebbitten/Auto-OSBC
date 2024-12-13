@@ -2,13 +2,13 @@
 The NRBot class contains properties and functions that are specific to the NR client. This class should
 be inherited by NR script classes.
 """
+
 import time
 from abc import ABCMeta
 
 import pyautogui as pag
 
 from model.runelite_bot import RuneLiteBot, RuneLiteWindow
-from utilities.geometry import Point
 
 
 class NRBot(RuneLiteBot, metaclass=ABCMeta):

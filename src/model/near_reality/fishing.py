@@ -4,10 +4,8 @@ import pyautogui as pag
 
 import utilities.api.item_ids as ids
 import utilities.color as clr
-from model.bot import BotStatus
 from model.near_reality.nr_bot import NRBot
 from utilities.api.status_socket import StatusSocket
-from utilities.geometry import Point, RuneLiteObject
 
 
 class NRFishing(NRBot):
@@ -26,7 +24,9 @@ class NRFishing(NRBot):
                 self.running_time = options[option]
             else:
                 self.log_msg(f"Unknown option: {option}")
-                print("Developer: ensure that the option keys are correct, and that options are being unpacked correctly.")
+                print(
+                    "Developer: ensure that the option keys are correct, and that options are being unpacked correctly."
+                )
                 self.options_set = False
                 return
         self.log_msg(f"Bot will run for {self.running_time} minutes.")

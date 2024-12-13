@@ -7,7 +7,6 @@ import os
 import re
 from enum import IntEnum
 from pathlib import Path
-from typing import List, Optional
 
 import cv2
 import numpy as np
@@ -72,7 +71,9 @@ class SpriteScraper:
                 completed_with_errors = True
 
         if completed_with_errors:
-            notify_callback(f"Search completed with errors. Some images may not have been saved. See:\n{destination}.\n")
+            notify_callback(
+                f"Search completed with errors. Some images may not have been saved. See:\n{destination}.\n"
+            )
         else:
             notify_callback(f"Search complete. Images saved to:\n{destination}.\n")
 
@@ -95,12 +96,16 @@ class SpriteScraper:
         max_height, max_width = 32, 36
 
         if height > max_height or width > max_width:
-            print("Warning: Image is already larger than bank slot. This sprite is unlikely to be relevant for bank functions.")
+            print(
+                "Warning: Image is already larger than bank slot. This sprite is unlikely to be relevant for bank functions."
+            )
             return image
 
         height_diff = max_height - height
         width_diff = max_width - width
-        image = cv2.copyMakeBorder(image, height_diff // 2, height_diff // 2, width_diff // 2, width_diff // 2, cv2.BORDER_CONSTANT, value=0)
+        image = cv2.copyMakeBorder(
+            image, height_diff // 2, height_diff // 2, width_diff // 2, width_diff // 2, cv2.BORDER_CONSTANT, value=0
+        )
         image[:9, :] = 0
         return image
 
@@ -122,7 +127,7 @@ class SpriteScraper:
         """
         return string.replace(" ", "_") if " " in string else string
 
-    def _format_args(self, string: str) -> List[str]:
+    def _format_args(self, string: str) -> list[str]:
         """
         Formats a comma-separated list of strings into a list of strings where each string is capitalized and
         underscores are used instead of spaces.
@@ -159,7 +164,7 @@ class SpriteScraper:
     # -------------------
     # Subregion: API-Specific Methods
     # -------------------
-    def __get_item_infobox_data(self, item: str) -> Optional[str]:
+    def __get_item_infobox_data(self, item: str) -> str | None:
         """
         Returns a string of data from the info box for a specific item from the Wiki.
         Args:
@@ -204,7 +209,7 @@ class SpriteScraper:
             print(f"{item}: Sprite couldn't be found in the info box.")
             return None
 
-    def __find_image_url(self, img_name: str, notify_callback) -> Optional[str]:
+    def __find_image_url(self, img_name: str, notify_callback) -> str | None:
         """
         Finds the image URL with two attempts. Handles capitalization of each word on the second attempt.
         Args:
@@ -227,7 +232,9 @@ class SpriteScraper:
     # -------------------
     # Subregion: Download/Saving Methods
     # -------------------
-    def __download_and_save_image(self, img_name: str, img_url: str, image_type: ImageType, destination: str, notify_callback) -> bool:
+    def __download_and_save_image(
+        self, img_name: str, img_url: str, image_type: ImageType, destination: str, notify_callback
+    ) -> bool:
         """
         Downloads the image and saves it according to the image_type argument.
 
@@ -254,7 +261,9 @@ class SpriteScraper:
         self.__save_image(img_name, downloaded_img, image_type, destination, notify_callback)
         return True
 
-    def __save_image(self, img_name: str, downloaded_img: np.ndarray, image_type: ImageType, destination: str, notify_callback) -> bool:
+    def __save_image(
+        self, img_name: str, downloaded_img: np.ndarray, image_type: ImageType, destination: str, notify_callback
+    ) -> bool:
         """
         Saves the image according to the image_type argument.
         Args:
