@@ -16,8 +16,8 @@ class FishingBot(OSRSBot, launcher.Launchable):
         # Set default values
         self.running_time = 360  # Default 360 minutes
         self.take_breaks = False
-        self.fish_type = "Shark"  # Default to shark fishing
-        self.fishing_spot_img = imsearch.BOT_IMAGES.joinpath("fishing_spots/shark.png")  # Set default image
+        self.fish_type = "Karam"  # Changed default to Karam
+        self.fishing_spot_img = imsearch.BOT_IMAGES.joinpath("fishing_spots/karam.png")  # Set default image
 
     def create_options(self):
         """
@@ -25,7 +25,7 @@ class FishingBot(OSRSBot, launcher.Launchable):
         """
         self.options_builder.add_slider_option("running_time", "How long to run (minutes)?", 1, 1000)
         self.options_builder.add_checkbox_option("take_breaks", "Take breaks?", [" "])
-        self.options_builder.add_dropdown_option("fish_type", "Fish type", ["Shark", "Lobster"])
+        self.options_builder.add_dropdown_option("fish_type", "Fish type", ["Karam", "Shark", "Lobster"])  # Added Karam to options
 
     def save_options(self, options: dict):
         """
