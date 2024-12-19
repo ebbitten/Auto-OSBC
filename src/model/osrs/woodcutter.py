@@ -1,176 +1,436 @@
 import time
-import threading
+import utilities.color as clr
+import utilities.random_util as rd
+from utilities.geometry import Point
+from model.osrs.osrs_bot import OSRSBot
+import utilities.imagesearch as imsearch
+import utilities.game_launcher as launcher
+import cv2
+import numpy as np
 
-from src.utilities.api import item_ids as ids
-import src.utilities.color as clr
-import src.utilities.random_util as rd
-from src.model.osrs.osrs_bot import OSRSBot
-from src.model.runelite_bot import BotStatus
-from src.utilities.api.events_client import EventsAPIClient
-from src.utilities.api.events_server import start_server_thread, EventsAPIHandler
-from src.utilities.geometry import RuneLiteObject
-
-class OSRSWoodcutter(OSRSBot):
+class OSRSWoodcutter(OSRSBot, launcher.Launchable):
     def __init__(self):
         bot_title = "Woodcutter"
-        description = (
-            "This bot power-chops wood. Position your character near some trees, tag them, and press Play.\nTHIS SCRIPT IS AN EXAMPLE, DO NOT USE LONGTERM."
-        )
+        description = "Chops trees and banks logs using Banker's Note (for now). Position near trees and tag them."
         super().__init__(bot_title=bot_title, description=description)
-        self.running_time = 1
+        
+        # Initialize default values
+        self.running_time = 60  # Default of 60 minutes
         self.take_breaks = False
-        self.server_thread = None
-        self.api_started = False
-
-    def start_api_server(self):
-        if not self.api_started:
-            self.server_thread = start_server_thread()
-            # Wait for the server to start
-            time.sleep(2)
-            self.api_started = True
-            self.log_msg("EventsAPI server started.")
+        self.tree_type = "Oak"  # Default tree type
+        self.tag_color = clr.PINK  # Default tag color
+        self.logs_chopped = 0
+        self.failed_searches = 0
+        
+        # Define tree types and their properties
+        self.tree_types = {
+            "Normal": {"level": 1, "xp": 25},
+            "Oak": {"level": 15, "xp": 37.5},
+            "Willow": {"level": 30, "xp": 67.5},
+            "Maple": {"level": 45, "xp": 100},
+            "Yew": {"level": 60, "xp": 175},
+            "Magic": {"level": 75, "xp": 250},
+            "Mahogany": {"level": 50, "xp": 125},
+        }
 
     def create_options(self):
+        """
+        Use the OptionsBuilder to define the options for the bot.
+        """
         self.options_builder.add_slider_option("running_time", "How long to run (minutes)?", 1, 500)
         self.options_builder.add_checkbox_option("take_breaks", "Take breaks?", [" "])
+        self.options_builder.add_dropdown_option(
+            "tree_type", 
+            "Tree type", 
+            ["Normal", "Oak", "Willow", "Maple", "Yew", "Magic", "Mahogany"]
+        )
 
     def save_options(self, options: dict):
+        """
+        Save the options from the GUI.
+        """
         for option in options:
             if option == "running_time":
                 self.running_time = options[option]
             elif option == "take_breaks":
                 self.take_breaks = options[option] != []
+            elif option == "tree_type":
+                self.tree_type = options[option]
             else:
                 self.log_msg(f"Unknown option: {option}")
-                print("Developer: ensure that the option keys are correct, and that options are being unpacked correctly.")
                 self.options_set = False
                 return
-        self.log_msg(f"Running time: {self.running_time} minutes.")
-        self.log_msg(f"Bot will{' ' if self.take_breaks else ' not '}take breaks.")
-        self.log_msg("Options set successfully.")
+                
+        self.log_msg(f"Running time: {self.running_time} minutes")
+        self.log_msg(f"Bot will{' ' if self.take_breaks else ' not '}take breaks")
+        self.log_msg(f"Tree type: {self.tree_type}")
         self.options_set = True
 
     def main_loop(self):
-        # Start the API server if it hasn't been started yet
-        if not self.api_started:
-            self.start_api_server()
-
-        # Check if the API is ready
-        retry_count = 0
-        while not EventsAPIClient.get_player_status():
-            if retry_count >= 10:
-                self.log_msg("Error: EventsAPI is not ready. Please check the RuneLite plugin and try again.")
-                return
-            self.log_msg(f"Waiting for EventsAPI to be ready... (Attempt {retry_count + 1}/10)")
-            time.sleep(2)
-            retry_count += 1
-
-        self.log_msg("EventsAPI is ready. Starting main loop...")
-
-        self.log_msg("Selecting inventory...")
-        self.mouse.move_to(self.win.cp_tabs[3].random_point())
-        self.mouse.click()
-
-        self.logs = 0
-        failed_searches = 0
-
-        # Main loop
+        """
+        Main bot loop.
+        """
+        # Start time tracking
         start_time = time.time()
         end_time = self.running_time * 60
+        consecutive_failures = 0
+        
+        self.log_msg("Starting woodcutting bot...")
+        
+        # Make sure inventory tab is open at start
+        self.log_msg("Opening inventory tab...")
+        self.mouse.move_to(self.win.cp_tabs[3].random_point())
+        self.mouse.click()
+        time.sleep(0.5)
+        
+        # Main loop
+        first_loop = True
         while time.time() - start_time < end_time:
-            # 5% chance to take a break between tree searches
-            if rd.random_chance(probability=0.05) and self.take_breaks:
-                self.take_break(max_seconds=30, fancy=True)
+            # Check if thread should stop
+            if self.should_stop():
+                self.log_msg("Stopping bot...")
+                break
 
-            # 2% chance to drop logs early
-            if rd.random_chance(probability=0.02):
-                self.__drop_logs()
+            try:
+                # Take breaks between actions
+                self.take_break()
+                
+                # Check if inventory is full
+                if self.is_inventory_full():
+                    self.log_msg("Inventory full, using banker's note...")
+                    if not self.use_bankers_note():
+                        self.log_msg("Failed to use banker's note!")
+                        self.take_debug_screenshot("banking_failure")
+                        consecutive_failures += 1
+                        if consecutive_failures > 3:
+                            self.log_msg("Too many banking failures, stopping bot...")
+                            break
+                        continue
+                    consecutive_failures = 0
+                    continue
 
-            # If inventory is full, drop logs
-            if EventsAPIClient.get_is_inv_full():
-                self.__drop_logs()
+                # Find and click tree
+                tree = self.find_tagged_tree()
+                if not tree:
+                    self.failed_searches += 1
+                    if self.failed_searches % 10 == 0:
+                        self.log_msg("Searching for trees...")
+                        self.take_debug_screenshot("no_trees")
+                    if self.failed_searches > 60:
+                        self.log_msg("No tagged trees found for too long, stopping bot...")
+                        break
+                    time.sleep(1)
+                    continue
+                self.failed_searches = 0  # Reset counter when tree found
 
-            # If our mouse isn't hovering over a tree, and we can't find another tree...
-            if not self.mouseover_text(contains="Chop", color=clr.OFF_WHITE) and not self.__move_mouse_to_nearest_tree():
-                failed_searches += 1
-                if failed_searches % 10 == 0:
-                    self.log_msg("Searching for trees...")
-                if failed_searches > 60:
-                    # If we've been searching for a whole minute...
-                    self.__logout("No tagged trees found. Logging out.")
-                time.sleep(1)
-                continue
-            failed_searches = 0  # If code got here, a tree was found
+                # Click the tree
+                self.mouse.move_to(tree)
+                if not self.mouseover_text(contains="Chop", color=clr.OFF_WHITE):
+                    self.log_msg("No chop option found, retrying...")
+                    self.take_debug_screenshot("no_chop_option")
+                    continue
+                self.mouse.click()
+                
+                # Wait for chopping to start
+                self.log_msg("Checking if chopping started...")
+                if not self.wait_for_chopping_to_start():
+                    self.log_msg("Failed to start chopping!")
+                    self.take_debug_screenshot("chop_start_failure")
+                    consecutive_failures += 1
+                    if consecutive_failures > 3:
+                        self.log_msg("Failed to start chopping too many times, stopping bot...")
+                        break
+                    continue
+                consecutive_failures = 0
 
-            # Click if the mouseover text assures us we're clicking a tree
-            if not self.mouseover_text(contains="Chop", color=clr.OFF_WHITE):
-                continue
-            self.mouse.click()
-            time.sleep(0.5)
+                # While chopping, wait and check status
+                while self.is_chopping():
+                    if self.should_stop():
+                        break
+                    time.sleep(0.5)
+                
+                self.logs_chopped += 1
+                self.log_msg(f"Logs chopped: {self.logs_chopped}")
 
-            # While the player is chopping (or moving), wait
-            probability = 0.10
-            last_position = EventsAPIClient.get_player_position()
-            while True:
-                current_position = EventsAPIClient.get_player_position()
-                if current_position != last_position:
+                if first_loop:
+                    # Wait a bit longer on first click to ensure woodcutting plugin activates
+                    time.sleep(3)
+                    first_loop = False
+
+            except Exception as e:
+                self.log_msg(f"Error in main loop: {e}")
+                self.take_debug_screenshot("error")
+                consecutive_failures += 1
+                if consecutive_failures > 3:
+                    self.log_msg("Too many consecutive errors, stopping bot...")
                     break
-                # Every second there is a chance to move the mouse to the next tree, lessen the chance as time goes on
-                if rd.random_chance(probability):
-                    self.__move_mouse_to_nearest_tree(next_nearest=True)
-                    probability /= 2
                 time.sleep(1)
 
+            # Update progress
             self.update_progress((time.time() - start_time) / end_time)
 
-        self.update_progress(1)
-        self.__logout("Finished.")
-
-    def __logout(self, msg):
-        self.log_msg(msg)
-        self.logout()
+        self.log_msg(f"Finished. Total logs chopped: {self.logs_chopped}")
         self.stop()
 
-    def __move_mouse_to_nearest_tree(self, next_nearest=False):
+    def should_stop(self) -> bool:
+        """Check if the bot should stop running"""
+        try:
+            if not self.thread:
+                self.log_msg("Stop detected: Thread is None")
+                return True
+            if not self.thread.is_alive():
+                self.log_msg("Stop detected: Thread is not alive")
+                return True
+            return False
+        except Exception as e:
+            self.log_msg(f"Error checking thread status: {str(e)}")
+            return True
+
+    def find_tagged_tree(self) -> Point | None:
         """
-        Locates the nearest tree and moves the mouse to it. This code is used multiple times in this script,
-        so it's been abstracted into a function.
+        Find nearest tagged tree using color detection.
+        Returns: Point if found, None otherwise
+        """
+        self.log_msg("Searching for tagged tree...")
+        
+        # Take screenshot of game view
+        game_view = self.win.game_view.screenshot()
+        
+        if game_view is None:
+            self.log_msg("Failed to get game view screenshot")
+            return None
+        
+        try:
+            # Convert to HSV for better pink detection
+            hsv = cv2.cvtColor(game_view, cv2.COLOR_BGR2HSV)
+            
+            # Define pink color range (adjust these values based on the screenshot)
+            lower_pink = np.array([150, 50, 200])  # More saturated pink
+            upper_pink = np.array([170, 255, 255])
+            
+            # Create mask for pink color
+            pink_mask = cv2.inRange(hsv, lower_pink, upper_pink)
+            
+            # Dilate the mask to connect nearby pink pixels (for outlines)
+            kernel = np.ones((3,3), np.uint8)
+            dilated_mask = cv2.dilate(pink_mask, kernel, iterations=2)
+            
+            # Find contours
+            contours, _ = cv2.findContours(dilated_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            if not contours:
+                self.log_msg("No tagged trees found")
+                return None
+            
+            # Get center point of game view for distance calculation
+            center = self.win.game_view.get_center()
+            
+            # Find closest valid tree contour
+            closest_tree = None
+            min_distance = float('inf')
+            
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                # Filter out very small contours (noise) and very large contours
+                if 100 < area < 10000:  # Adjust these thresholds as needed
+                    # Get center of contour
+                    M = cv2.moments(contour)
+                    if M["m00"] != 0:
+                        cx = int(M["m10"] / M["m00"])
+                        cy = int(M["m01"] / M["m00"])
+                        
+                        # Calculate distance from center
+                        distance = ((cx - center.x) ** 2 + (cy - center.y) ** 2) ** 0.5
+                        
+                        if distance < min_distance:
+                            min_distance = distance
+                            closest_tree = Point(cx, cy)
+            
+            if closest_tree:
+                # Add some random offset
+                offset_x = rd.random_int(-3, 3)
+                offset_y = rd.random_int(-3, 3)
+                
+                self.log_msg(f"Found tree at: ({closest_tree.x}, {closest_tree.y})")
+                return Point(closest_tree.x + offset_x, closest_tree.y + offset_y)
+            
+            return None
+            
+        except Exception as e:
+            self.log_msg(f"Error finding tree: {e}")
+            return None
+
+    def is_inventory_full(self) -> bool:
+        """
+        Check if inventory is full by checking if any slots before the banker's note are empty.
+        Returns: True if full, False otherwise
+        """
+        try:
+            # Make sure inventory tab is open
+            self.log_msg("Checking if inventory is full...")
+            inventory = imsearch.search_img_in_rect(
+                imsearch.BOT_IMAGES.joinpath("inventory_tab.png"),
+                self.win.control_panel,
+                confidence=0.7
+            )
+            
+            if not inventory:
+                self.log_msg("Opening inventory tab...")
+                self.mouse.move_to(self.win.cp_tabs[3].random_point())
+                self.mouse.click()
+                time.sleep(0.5)
+            
+            # Check all slots except the last one (banker's note)
+            for slot in self.win.inventory_slots[:-1]:
+                slot_img = slot.screenshot()
+                if slot_img is None:
+                    continue
+                if self.is_slot_empty(slot_img):
+                    self.log_msg("Found empty slot - inventory not full")
+                    return False
+            
+            self.log_msg("All slots before banker's note are full")
+            return True
+            
+        except Exception as e:
+            self.log_msg(f"Error checking inventory: {e}")
+            return False
+
+    def get_empty_inventory_slots(self) -> list:
+        """
+        Get list of empty inventory slots by checking slot colors.
+        Returns: List of empty slot indices
+        """
+        empty_slots = []
+        
+        for i, slot in enumerate(self.win.inventory_slots):
+            # Take small screenshot of slot
+            slot_img = slot.screenshot()
+            
+            # Check if slot has the inventory background color
+            if self.is_slot_empty(slot_img):
+                empty_slots.append(i)
+                
+        return empty_slots
+
+    def is_slot_empty(self, slot_img) -> bool:
+        """
+        Check if an inventory slot is empty by looking for the background color.
         Args:
-            next_nearest: If True, will move the mouse to the second nearest tree. If False, will move the mouse to the
-                          nearest tree.
-        Returns:
-            True if success, False otherwise.
+            slot_img: Screenshot of the inventory slot
+        Returns: True if slot is empty, False otherwise
         """
-        trees = self.get_all_tagged_in_rect(self.win.game_view, clr.PINK)
-        tree = None
-        if not trees:
+        if slot_img is None:
             return False
-        # If we are looking for the next nearest tree, we need to make sure trees has at least 2 elements
-        if next_nearest and len(trees) < 2:
+        
+        try:
+            # Convert to HSV for better color detection
+            hsv = cv2.cvtColor(slot_img, cv2.COLOR_BGR2HSV)
+            
+            # Define inventory background color range in HSV
+            lower = np.array([0, 0, 20])  # Dark grey
+            upper = np.array([180, 30, 80])
+            
+            # Create mask for background color
+            mask = cv2.inRange(hsv, lower, upper)
+            
+            # Calculate percentage of background color
+            total_pixels = slot_img.shape[0] * slot_img.shape[1]
+            if total_pixels == 0:
+                return False
+            
+            background_pixels = cv2.countNonZero(mask)
+            background_percentage = (background_pixels / total_pixels) * 100
+            
+            return background_percentage > 90  # Slot is empty if >90% matches background
+            
+        except Exception as e:
+            self.log_msg(f"Error checking slot: {e}")
             return False
-        trees = sorted(trees, key=RuneLiteObject.distance_from_rect_center)
-        tree = trees[1] if next_nearest else trees[0]
-        if next_nearest:
-            self.mouse.move_to(tree.random_point(), mouseSpeed="slow", knotsCount=2)
-        else:
-            self.mouse.move_to(tree.random_point())
-        return True
 
-    def __drop_logs(self):
+    def use_bankers_note(self) -> bool:
         """
-        Private function for dropping logs. This code is used in multiple places, so it's been abstracted.
+        Use banker's note (assumed to be in last inventory slot) to bank logs.
+        Returns: True if successful, False otherwise
         """
-        slots = EventsAPIClient.get_inv_item_indices(ids.logs)
-        self.drop(slots)
-        self.logs += len(slots)
-        self.log_msg(f"Logs cut: ~{self.logs}")
-        time.sleep(1)
+        try:
+            self.log_msg("Attempting to use banker's note...")
+            
+            # Click banker's note in last slot
+            last_slot = self.win.inventory_slots[-1]
+            self.mouse.move_to(last_slot.random_point())
+            self.mouse.click()
+            time.sleep(0.5)
+            
+            # Find and click first log stack
+            for slot in self.win.inventory_slots[:-1]:  # Skip last slot (banker's note)
+                slot_img = slot.screenshot()
+                if not self.is_slot_empty(slot_img):
+                    self.mouse.move_to(slot.random_point())
+                    self.mouse.click()
+                    break
+            
+            # Wait for noting animation
+            time.sleep(1)
+            
+            # Verify inventory is now empty except for note
+            if self.is_inventory_full():
+                self.log_msg("Failed to note logs - inventory still full")
+                return False
+            
+            self.log_msg("Successfully noted logs")
+            return True
+            
+        except Exception as e:
+            self.log_msg(f"Error using banker's note: {e}")
+            return False
 
-    def stop(self):
-        self.log_msg("Stopping bot...")
-        if self.server_thread:
-            # Implement a way to stop the server gracefully
-            self.log_msg("Stopping EventsAPI server...")
-            # You might need to implement a stop method in your server
-        super().stop()
-        self.log_msg("Bot stopped.")
+    def is_chopping(self) -> bool:
+        """
+        Check if the player is currently chopping by looking for the woodcutting animation.
+        Returns: True if chopping, False otherwise
+        """
+        return self.is_player_doing_action("Woodcutting")
+
+    def wait_for_chopping_to_start(self, timeout: int = 10) -> bool:
+        """
+        Wait for the chopping animation to start.
+        Args:
+            timeout: Maximum time to wait in seconds
+        Returns: True if chopping started, False if timeout
+        """
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if self.is_chopping():
+                return True
+            time.sleep(0.1)
+        return False
+
+    def take_break(self):
+        """
+        Takes a short break between actions.
+        """
+        if not self.take_breaks:
+            return
+        
+        if rd.random_chance(0.1):  # 10% chance to take break
+            break_time = rd.random_int(1, 5)
+            self.log_msg(f"Taking a short break ({break_time}s)")
+            time.sleep(break_time)
+
+    def take_debug_screenshot(self, reason: str):
+        """
+        Takes a screenshot and saves it with timestamp and reason
+        """
+        try:
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            filename = f"debug_{reason}_{timestamp}.png"
+            
+            # Save screenshot of game view
+            screenshot = self.win.game_view.screenshot()
+            if screenshot is not None:
+                import cv2
+                cv2.imwrite(filename, screenshot)
+                self.log_msg(f"Debug screenshot saved: {filename}")
+        except Exception as e:
+            self.log_msg(f"Error taking debug screenshot: {str(e)}")
