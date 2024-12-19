@@ -7,6 +7,7 @@ import utilities.imagesearch as imsearch
 import utilities.game_launcher as launcher
 import cv2
 import numpy as np
+from typing import Union
 
 class OSRSWoodcutter(OSRSBot, launcher.Launchable):
     def __init__(self):
@@ -68,65 +69,90 @@ class OSRSWoodcutter(OSRSBot, launcher.Launchable):
 
     def main_loop(self):
         """
-        Main bot loop. Simplified based on Zaros implementation.
+        Main bot loop with retry logic.
         """
         self.log_msg("Selecting inventory...")
         self.mouse.move_to(self.win.cp_tabs[3].random_point())
         self.mouse.click()
+        time.sleep(0.5)
 
         first_loop = True
         logs = 0
         failed_searches = 0
         debug_counter = 0
+        MAX_RETRIES = 3  # Maximum number of retries per tree
+        MAX_TOTAL_FAILURES = 60  # Maximum total failed searches before stopping
 
         # Main loop
         start_time = time.time()
         end_time = self.running_time * 60
         while time.time() - start_time < end_time:
             try:
-                # Find and click tree
-                tree = self.find_tagged_tree()
-                if not tree:
+                # Find and click tree with retries
+                tree = None
+                retries = 0
+                while tree is None and retries < MAX_RETRIES:
+                    tree = self.find_tagged_tree()
+                    if tree is None:
+                        retries += 1
+                        self.log_msg(f"Tree search attempt {retries}/{MAX_RETRIES}...")
+                        time.sleep(0.5)
+                
+                if tree is None:
                     failed_searches += 1
                     if failed_searches % 10 == 0:
-                        self.log_msg("Searching for trees...")
-                        if debug_counter % 3 == 0:  # Reduce debug screenshots
+                        self.log_msg(f"Failed searches: {failed_searches}/{MAX_TOTAL_FAILURES}")
+                        if debug_counter % 3 == 0:  # Reduce screenshot spam
                             self.take_debug_screenshot("no_trees")
                         debug_counter += 1
-                    if failed_searches > 60:
-                        self.log_msg("No tagged trees found for too long, stopping bot...")
+                    if failed_searches >= MAX_TOTAL_FAILURES:
+                        self.log_msg("Max failed searches reached, stopping bot...")
                         break
                     time.sleep(1)
                     continue
                 
+                # Reset counters on successful find
                 failed_searches = 0
                 debug_counter = 0
 
                 # Click tree and wait to start cutting
                 self.mouse.move_to(tree)
+                time.sleep(0.3)  # Wait for mouse movement
+                
                 if not self.mouseover_text(contains="Chop"):
+                    self.log_msg("No chop option found, retrying...")
                     continue
+                    
                 self.mouse.click()
+                time.sleep(0.5)  # Wait after clicking
 
                 if first_loop:
-                    # Chop for a few seconds to get the Woodcutting plugin to show up
                     time.sleep(5)
                     first_loop = False
-
-                time.sleep(rd.truncated_normal_sample(1, 10, 2, 2))
+                else:
+                    time.sleep(rd.truncated_normal_sample(1, 2, 1.5, 0.2))
 
                 # Wait until we're done chopping
+                chop_timeout = 0
+                MAX_CHOP_WAIT = 30  # Maximum seconds to wait for chopping
                 while self.is_player_doing_action("Woodcutting"):
                     time.sleep(1)
-
-                self.update_progress((time.time() - start_time) / end_time)
+                    chop_timeout += 1
+                    if chop_timeout % 5 == 0:  # Log every 5 seconds
+                        self.log_msg("Still chopping...")
+                    if chop_timeout >= MAX_CHOP_WAIT:
+                        self.log_msg("Chopping timeout reached, looking for new tree...")
+                        break
+                    self.update_progress((time.time() - start_time) / end_time)
 
             except Exception as e:
                 self.log_msg(f"Error in main loop: {e}")
-                if debug_counter % 3 == 0:  # Reduce error screenshots
+                if debug_counter % 3 == 0:
                     self.take_debug_screenshot("error")
                 debug_counter += 1
                 time.sleep(1)
+
+        self.log_msg(f"Bot finished. Total runtime: {int((time.time() - start_time) / 60)} minutes")
 
     def should_stop(self) -> bool:
         """Check if the bot should stop running"""
@@ -152,91 +178,155 @@ class OSRSWoodcutter(OSRSBot, launcher.Launchable):
             game_view = self.win.game_view.screenshot()
             
             if game_view is None:
+                self.log_msg("Failed to get game view screenshot")
                 return None
+            
+            # Log image dimensions
+            h, w = game_view.shape[:2]
+            self.log_msg(f"Game view dimensions: {w}x{h}")
             
             # Convert to HSV for better pink detection
             hsv = cv2.cvtColor(game_view, cv2.COLOR_BGR2HSV)
             
             # Define pink color range
-            lower_pink = np.array([150, 50, 200])
-            upper_pink = np.array([170, 255, 255])
+            lower_pink = np.array([145, 30, 180])
+            upper_pink = np.array([175, 255, 255])
             
             # Create mask for pink color
             pink_mask = cv2.inRange(hsv, lower_pink, upper_pink)
             
+            # Count pink pixels
+            pink_pixels = cv2.countNonZero(pink_mask)
+            self.log_msg(f"Total pink pixels detected: {pink_pixels}")
+            
             # Find contours
             contours, _ = cv2.findContours(pink_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
+            self.log_msg(f"Number of contours found: {len(contours)}")
+            
             if not contours:
+                self.log_msg("No pink contours found")
                 return None
             
             # Get center point of game view for distance calculation
             center = self.win.game_view.get_center()
+            self.log_msg(f"Game view center: ({center.x}, {center.y})")
             
             # Find closest valid tree contour
             closest_tree = None
             min_distance = float('inf')
             
-            for contour in contours:
+            # Log details for each contour
+            for i, contour in enumerate(contours):
                 area = cv2.contourArea(contour)
-                if 100 < area < 10000:
-                    x, y, w, h = cv2.boundingRect(contour)
-                    cx = x + w//2 + 100  # Offset to the right
-                    cy = y + h//2
+                perimeter = cv2.arcLength(contour, True)
+                x, y, w, h = cv2.boundingRect(contour)
+                aspect_ratio = w/h if h != 0 else 0
+                
+                self.log_msg(f"Contour {i}:")
+                self.log_msg(f"  Area: {area}")
+                self.log_msg(f"  Perimeter: {perimeter}")
+                self.log_msg(f"  Bounding box: x={x}, y={y}, w={w}, h={h}")
+                self.log_msg(f"  Aspect ratio: {aspect_ratio}")
+                
+                # Check if contour matches tree criteria
+                if (5000 < area < 30000 and 
+                    0.8 < aspect_ratio < 1.2 and 
+                    abs(w - h) < 50):
                     
+                    # Calculate center point - move slightly towards the trunk
+                    cx = x + w//2
+                    cy = y + int(h * 0.6)  # Aim 60% down from the top
                     distance = ((cx - center.x) ** 2 + (cy - center.y) ** 2) ** 0.5
+                    
+                    self.log_msg(f"  Distance from center: {distance}")
+                    self.log_msg(f"  Valid contour: Yes")
                     
                     if distance < min_distance:
                         min_distance = distance
-                        closest_tree = Point(cx, cy)
+                        # Store more info about the tree
+                        closest_tree = {
+                            'center': Point(cx, cy),
+                            'width': w,
+                            'height': h,
+                            'area': area
+                        }
+                else:
+                    self.log_msg(f"  Valid contour: No (failed validation checks)")
             
             if closest_tree:
                 import random
-                offset_x = random.randint(-5, 5)
-                offset_y = random.randint(-5, 5)
-                return Point(closest_tree.x + offset_x, closest_tree.y + offset_y)
+                # Calculate random point inside the tree (avoiding edges)
+                w_offset = closest_tree['width'] // 4
+                h_offset = closest_tree['height'] // 4
+                offset_x = random.randint(-w_offset, w_offset)
+                offset_y = random.randint(-h_offset, h_offset)
+                
+                final_point = Point(
+                    closest_tree['center'].x + offset_x,
+                    closest_tree['center'].y + offset_y
+                )
+                
+                self.log_msg(f"Selected tree center at: ({closest_tree['center'].x}, {closest_tree['center'].y})")
+                self.log_msg(f"Click target: ({final_point.x}, {final_point.y})")
+                return final_point
             
             return None
             
         except Exception as e:
             self.log_msg(f"Error finding tree: {e}")
+            import traceback
+            self.log_msg(f"Traceback: {traceback.format_exc()}")
             return None
 
     def is_inventory_full(self) -> bool:
         """
-        Check if inventory is full by checking if any slots before the banker's note are empty.
-        Returns: True if full, False otherwise
+        Check if inventory is full by looking for the "Your inventory is full" message
+        in black game text
         """
         try:
-            # Make sure inventory tab is open
-            self.log_msg("Checking if inventory is full...")
-            inventory = imsearch.search_img_in_rect(
-                imsearch.BOT_IMAGES.joinpath("inventory_tab.png"),
-                self.win.control_panel,
-                confidence=0.7
-            )
+            # Check for the inventory full message in game text
+            if self.get_game_message("Your inventory is too full"):
+                self.log_msg("Inventory full message found!")
+                return True
             
-            if not inventory:
-                self.log_msg("Opening inventory tab...")
-                self.mouse.move_to(self.win.cp_tabs[3].random_point())
-                self.mouse.click()
-                time.sleep(0.5)
+            # Also check if all inventory slots are filled as backup
+            inventory = self.win.inventory
+            if inventory and inventory.is_full():
+                self.log_msg("All inventory slots are filled!")
+                return True
             
-            # Check all slots except the last one (banker's note)
-            for slot in self.win.inventory_slots[:-1]:
-                slot_img = slot.screenshot()
-                if slot_img is None:
-                    continue
-                if self.is_slot_empty(slot_img):
-                    self.log_msg("Found empty slot - inventory not full")
-                    return False
-            
-            self.log_msg("All slots before banker's note are full")
-            return True
+            return False
             
         except Exception as e:
             self.log_msg(f"Error checking inventory: {e}")
             return False
+
+    def get_chat_text(self) -> str | None:
+        """
+        Get text from the chat area using OCR
+        """
+        try:
+            # Take screenshot of chat area
+            chat_area = self.win.chat_area.screenshot()
+            
+            if chat_area is None:
+                return None
+            
+            # Convert to grayscale
+            gray = cv2.cvtColor(chat_area, cv2.COLOR_BGR2GRAY)
+            
+            # Threshold to get black text
+            _, thresh = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY_INV)
+            
+            # Use OCR to get text
+            text = pytesseract.image_to_string(thresh)
+            
+            return text
+            
+        except Exception as e:
+            self.log_msg(f"Error getting chat text: {e}")
+            return None
 
     def get_empty_inventory_slots(self) -> list:
         """
@@ -376,3 +466,18 @@ class OSRSWoodcutter(OSRSBot, launcher.Launchable):
                 self.log_msg(f"Debug screenshot saved: {filename}")
         except Exception as e:
             self.log_msg(f"Error taking debug screenshot: {str(e)}")
+
+    def chatbox_text(self, contains: str = None) -> Union[bool, str]:
+        """
+        Examines the chatbox for text. Currently only captures player chat text.
+        Args:
+            contains: The text to search for (single word or phrase). Case sensitive. If left blank,
+                      returns all text in the chatbox.
+        Returns:
+            True if exact string is found, False otherwise.
+            If args are left blank, returns the text in the chatbox.
+        """
+        if contains is None:
+            return ocr.extract_text(self.win.chat, ocr.PLAIN_12, clr.BLUE)
+        if ocr.find_text(contains, self.win.chat, ocr.PLAIN_12, clr.BLUE):
+            return True

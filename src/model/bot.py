@@ -438,6 +438,20 @@ class Bot(ABC):
         if ocr.find_text(contains, self.win.chat, ocr.PLAIN_12, clr.BLUE):
             return True
 
+    def get_game_message(self, contains: str = None) -> Union[bool, str]:
+        """
+        Examines the chatbox for game messages (black text).
+        Args:
+            contains: The text to search for (single word or phrase). Case sensitive. If left blank,
+                      returns all game message text in the chatbox.
+        Returns:
+            True if exact string is found, False otherwise.
+            If args are left blank, returns all game message text.
+        """
+        if contains is None:
+            return ocr.extract_text(self.win.chat, ocr.PLAIN_12, clr.BLACK)
+        return ocr.find_text(contains, self.win.chat, ocr.PLAIN_12, clr.BLACK)
+
     # --- Client Settings ---
     def set_compass_north(self):
         self.log_msg("Setting compass North...")
