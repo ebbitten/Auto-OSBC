@@ -9,5 +9,5 @@ __all__ = [
     # "WoodcutterBot",
     "AgilityBot",
     "FishingBot",
-    "OSRSWoodcutter"
+    "OSRSWoodcutter",
 ]

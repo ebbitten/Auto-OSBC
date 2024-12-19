@@ -68,109 +68,65 @@ class OSRSWoodcutter(OSRSBot, launcher.Launchable):
 
     def main_loop(self):
         """
-        Main bot loop.
+        Main bot loop. Simplified based on Zaros implementation.
         """
-        # Start time tracking
-        start_time = time.time()
-        end_time = self.running_time * 60
-        consecutive_failures = 0
-        
-        self.log_msg("Starting woodcutting bot...")
-        
-        # Make sure inventory tab is open at start
-        self.log_msg("Opening inventory tab...")
+        self.log_msg("Selecting inventory...")
         self.mouse.move_to(self.win.cp_tabs[3].random_point())
         self.mouse.click()
-        time.sleep(0.5)
-        
-        # Main loop
+
         first_loop = True
+        logs = 0
+        failed_searches = 0
+        debug_counter = 0
+
+        # Main loop
+        start_time = time.time()
+        end_time = self.running_time * 60
         while time.time() - start_time < end_time:
-            # Check if thread should stop
-            if self.should_stop():
-                self.log_msg("Stopping bot...")
-                break
-
             try:
-                # Take breaks between actions
-                self.take_break()
-                
-                # Check if inventory is full
-                if self.is_inventory_full():
-                    self.log_msg("Inventory full, using banker's note...")
-                    if not self.use_bankers_note():
-                        self.log_msg("Failed to use banker's note!")
-                        self.take_debug_screenshot("banking_failure")
-                        consecutive_failures += 1
-                        if consecutive_failures > 3:
-                            self.log_msg("Too many banking failures, stopping bot...")
-                            break
-                        continue
-                    consecutive_failures = 0
-                    continue
-
                 # Find and click tree
                 tree = self.find_tagged_tree()
                 if not tree:
-                    self.failed_searches += 1
-                    if self.failed_searches % 10 == 0:
+                    failed_searches += 1
+                    if failed_searches % 10 == 0:
                         self.log_msg("Searching for trees...")
-                        self.take_debug_screenshot("no_trees")
-                    if self.failed_searches > 60:
+                        if debug_counter % 3 == 0:  # Reduce debug screenshots
+                            self.take_debug_screenshot("no_trees")
+                        debug_counter += 1
+                    if failed_searches > 60:
                         self.log_msg("No tagged trees found for too long, stopping bot...")
                         break
                     time.sleep(1)
                     continue
-                self.failed_searches = 0  # Reset counter when tree found
+                
+                failed_searches = 0
+                debug_counter = 0
 
-                # Click the tree
+                # Click tree and wait to start cutting
                 self.mouse.move_to(tree)
-                if not self.mouseover_text(contains="Chop", color=clr.OFF_WHITE):
-                    self.log_msg("No chop option found, retrying...")
-                    self.take_debug_screenshot("no_chop_option")
+                if not self.mouseover_text(contains="Chop"):
                     continue
                 self.mouse.click()
-                
-                # Wait for chopping to start
-                self.log_msg("Checking if chopping started...")
-                if not self.wait_for_chopping_to_start():
-                    self.log_msg("Failed to start chopping!")
-                    self.take_debug_screenshot("chop_start_failure")
-                    consecutive_failures += 1
-                    if consecutive_failures > 3:
-                        self.log_msg("Failed to start chopping too many times, stopping bot...")
-                        break
-                    continue
-                consecutive_failures = 0
-
-                # While chopping, wait and check status
-                while self.is_chopping():
-                    if self.should_stop():
-                        break
-                    time.sleep(0.5)
-                
-                self.logs_chopped += 1
-                self.log_msg(f"Logs chopped: {self.logs_chopped}")
 
                 if first_loop:
-                    # Wait a bit longer on first click to ensure woodcutting plugin activates
-                    time.sleep(3)
+                    # Chop for a few seconds to get the Woodcutting plugin to show up
+                    time.sleep(5)
                     first_loop = False
+
+                time.sleep(rd.truncated_normal_sample(1, 10, 2, 2))
+
+                # Wait until we're done chopping
+                while self.is_player_doing_action("Woodcutting"):
+                    time.sleep(1)
+
+                self.update_progress((time.time() - start_time) / end_time)
 
             except Exception as e:
                 self.log_msg(f"Error in main loop: {e}")
-                self.take_debug_screenshot("error")
-                consecutive_failures += 1
-                if consecutive_failures > 3:
-                    self.log_msg("Too many consecutive errors, stopping bot...")
-                    break
+                if debug_counter % 3 == 0:  # Reduce error screenshots
+                    self.take_debug_screenshot("error")
+                debug_counter += 1
                 time.sleep(1)
-
-            # Update progress
-            self.update_progress((time.time() - start_time) / end_time)
-
-        self.log_msg(f"Finished. Total logs chopped: {self.logs_chopped}")
-        self.stop()
 
     def should_stop(self) -> bool:
         """Check if the bot should stop running"""
@@ -191,35 +147,27 @@ class OSRSWoodcutter(OSRSBot, launcher.Launchable):
         Find nearest tagged tree using color detection.
         Returns: Point if found, None otherwise
         """
-        self.log_msg("Searching for tagged tree...")
-        
-        # Take screenshot of game view
-        game_view = self.win.game_view.screenshot()
-        
-        if game_view is None:
-            self.log_msg("Failed to get game view screenshot")
-            return None
-        
         try:
+            # Take screenshot of game view
+            game_view = self.win.game_view.screenshot()
+            
+            if game_view is None:
+                return None
+            
             # Convert to HSV for better pink detection
             hsv = cv2.cvtColor(game_view, cv2.COLOR_BGR2HSV)
             
-            # Define pink color range (adjust these values based on the screenshot)
-            lower_pink = np.array([150, 50, 200])  # More saturated pink
+            # Define pink color range
+            lower_pink = np.array([150, 50, 200])
             upper_pink = np.array([170, 255, 255])
             
             # Create mask for pink color
             pink_mask = cv2.inRange(hsv, lower_pink, upper_pink)
             
-            # Dilate the mask to connect nearby pink pixels (for outlines)
-            kernel = np.ones((3,3), np.uint8)
-            dilated_mask = cv2.dilate(pink_mask, kernel, iterations=2)
-            
             # Find contours
-            contours, _ = cv2.findContours(dilated_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours, _ = cv2.findContours(pink_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
             if not contours:
-                self.log_msg("No tagged trees found")
                 return None
             
             # Get center point of game view for distance calculation
@@ -231,27 +179,21 @@ class OSRSWoodcutter(OSRSBot, launcher.Launchable):
             
             for contour in contours:
                 area = cv2.contourArea(contour)
-                # Filter out very small contours (noise) and very large contours
-                if 100 < area < 10000:  # Adjust these thresholds as needed
-                    # Get center of contour
-                    M = cv2.moments(contour)
-                    if M["m00"] != 0:
-                        cx = int(M["m10"] / M["m00"])
-                        cy = int(M["m01"] / M["m00"])
-                        
-                        # Calculate distance from center
-                        distance = ((cx - center.x) ** 2 + (cy - center.y) ** 2) ** 0.5
-                        
-                        if distance < min_distance:
-                            min_distance = distance
-                            closest_tree = Point(cx, cy)
+                if 100 < area < 10000:
+                    x, y, w, h = cv2.boundingRect(contour)
+                    cx = x + w//2 + 100  # Offset to the right
+                    cy = y + h//2
+                    
+                    distance = ((cx - center.x) ** 2 + (cy - center.y) ** 2) ** 0.5
+                    
+                    if distance < min_distance:
+                        min_distance = distance
+                        closest_tree = Point(cx, cy)
             
             if closest_tree:
-                # Add some random offset
-                offset_x = rd.random_int(-3, 3)
-                offset_y = rd.random_int(-3, 3)
-                
-                self.log_msg(f"Found tree at: ({closest_tree.x}, {closest_tree.y})")
+                import random
+                offset_x = random.randint(-5, 5)
+                offset_y = random.randint(-5, 5)
                 return Point(closest_tree.x + offset_x, closest_tree.y + offset_y)
             
             return None
