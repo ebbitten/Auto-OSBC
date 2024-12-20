@@ -7,4 +7,5 @@ class OSRSBot(RuneLiteBot, metaclass=ABCMeta):
     win: RuneLiteWindow = None
 
     def __init__(self, bot_title, description) -> None:
-        super().__init__("OSRS", bot_title, description)
+        window = RuneLiteWindow("RuneLite")
+        super().__init__("OSRS", bot_title, description, window)

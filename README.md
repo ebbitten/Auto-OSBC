@@ -110,3 +110,26 @@ pip install -e .
 ```
 
 This allows changes to the source code to be immediately reflected in the installed package.
+
+## Code Modification Guidelines
+
+When modifying or adding code:
+
+1. Use existing utilities:
+   - Random operations: `rd.random_int()`, `rd.random_chance()`, etc.
+   - Mouse movements: `self.mouse.move_to()`, `self.mouse.click()`
+   - Geometry: `Point`, `Rectangle` from `utilities.geometry`
+   - Color detection: `utilities.color as clr`
+   - Image search: `utilities.imagesearch as imsearch`
+   - OCR: `utilities.ocr as ocr`
+
+2. Follow established patterns:
+   - Use `self.log_msg()` for user feedback
+   - Use consistent timing patterns
+   - Follow existing error handling approaches
+   - Use existing mouse movement patterns
+
+3. Check similar implementations:
+   - Look for similar functionality in other bot classes
+   - Maintain consistency with existing code
+   - Reuse existing methods where possible
