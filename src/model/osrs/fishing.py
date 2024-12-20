@@ -16,8 +16,8 @@ class FishingBot(OSRSBot, launcher.Launchable):
         # Set default values
         self.running_time = 360  # Default 360 minutes
         self.take_breaks = False
-        self.fish_type = "Karam"  # Changed default to Karam
-        self.fishing_spot_img = imsearch.BOT_IMAGES.joinpath("fishing_spots/karam.png")  # Set default image
+        self.fish_type = "Shark"  # Changed default to Karam
+        self.fishing_spot_img = imsearch.BOT_IMAGES.joinpath("fishing_spots/shark.png")  # Set default image
 
     def create_options(self):
         """
