@@ -44,41 +44,37 @@ echo_step "Unsetting Cursor-related variables that can interfere with installati
 unset GSETTINGS_SCHEMA_DIR APPDIR LD_LIBRARY_PATH APPIMAGE CHROME_DESKTOP
 
 echo_step "Installing system dependencies (this may take a while)"
-sudo apt-get update
-sudo apt-get install -y \
-    python3.10 \
-    python3.10-venv \
-    python3.10-dev \
-    python3-tk \
-    python3-dev \
-    python3-xlib \
-    python3-setuptools \
-    python3-full \
-    pipx \
-    build-essential \
-    libx11-dev \
-    libxcb1-dev \
-    scrot \
-    xsel \
-    xclip \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libtiff5-dev \
-    libjpeg8-dev \
-    libopenjp2-7-dev \
-    zlib1g-dev \
-    libfreetype6-dev \
-    liblcms2-dev \
-    libwebp-dev \
-    tcl8.6-dev \
-    tk8.6-dev \
-    libharfbuzz-dev \
-    libfribidi-dev \
-    libxcb-xinerama0-dev \
-    libxcb-randr0-dev \
-    libxcb-xtest0-dev \
-    libxcb-shape0-dev \
-    libxcb-xkb-dev
+sudo apt-get update || {
+    echo -e "${RED}Failed to update package lists. Continuing anyway...${NC}"
+}
+
+# Split dependencies into smaller groups
+PYTHON_DEPS="python3.10 python3.10-venv python3.10-dev python3-tk python3-dev python3-xlib python3-setuptools python3-full pipx"
+BUILD_DEPS="build-essential libx11-dev libxcb1-dev"
+UTIL_DEPS="scrot xsel xclip"
+LIB_DEPS="libgl1 libtiff5-dev libjpeg8-dev libopenjp2-7-dev zlib1g-dev"
+FONT_DEPS="libfreetype6-dev liblcms2-dev libwebp-dev tcl8.6-dev tk8.6-dev libharfbuzz-dev libfribidi-dev"
+XCB_DEPS="libxcb-xinerama0-dev libxcb-randr0-dev libxcb-xtest0-dev libxcb-shape0-dev libxcb-xkb-dev"
+
+# Function to install dependency group
+install_deps() {
+    local deps=$1
+    local group_name=$2
+    echo -e "${YELLOW}Installing $group_name...${NC}"
+    sudo apt-get install -y $deps || {
+        echo -e "${RED}Failed to install $group_name. Trying to continue...${NC}"
+        return 1
+    }
+}
+
+# Install each group separately
+install_deps "$PYTHON_DEPS" "Python dependencies"
+install_deps "$BUILD_DEPS" "Build dependencies"
+install_deps "$UTIL_DEPS" "Utility dependencies"
+install_deps "$LIB_DEPS" "Library dependencies"
+install_deps "$FONT_DEPS" "Font dependencies"
+install_deps "$XCB_DEPS" "XCB dependencies"
+
 check_success "System dependencies installed"
 
 echo_step "Removing existing virtual environment if it exists"
@@ -113,22 +109,25 @@ packages=(
     "customtkinter==5.1.3"
     "Pillow==9.3.0"
     "tkinter-tooltip==2.1.0"
-    "opencv-python-headless==4.5.4.60"
     "numpy==1.23.1"
     "deprecated==1.2.13"
     "simplejson==3.17.6"
     "pywinctl==0.0.42"
     "mss==7.0.1"
-    "pyclick==0.0.2"
-    "PyTweening==1.0.4"
-    "mouseinfo==0.1.3"
-    "pygetwindow==0.0.9"
-    "pyscreeze==0.1.28"
-    "pymsgbox==1.0.9"
-    "pyperclip==1.8.2"
-    "PyAutoGUI==0.9.53"
+    "opencv-python==4.6.0.66"
+    "opencv-python-headless==4.6.0.66"
+    "pytesseract==0.3.10"
+    "pathlib==1.0.1"
+    "typing==3.7.4.3"
+    "psutil==5.9.5"
+    "requests==2.31.0"
+    "matplotlib==3.6.2"
+    "pandas==1.5.0"
+    "pre-commit==2.20.0"
+    "evdev==1.7.0"
 )
 
+# Install packages one by one
 for package in "${packages[@]}"; do
     install_package "$package"
     if [ $? -ne 0 ]; then
@@ -136,10 +135,9 @@ for package in "${packages[@]}"; do
         exit 1
     fi
 done
-check_success "All core dependencies installed"
 
 echo_step "Installing PyAutoGUI and dependencies in specific order"
-$VENV_PYTHON -m pip uninstall -y pyautogui mouseinfo pygetwindow pymsgbox pyperclip pyscreeze pytweening python3-xlib python-xlib
+$VENV_PYTHON -m pip uninstall -y pyautogui mouseinfo pygetwindow pymsgbox pyperclip pyscreeze pytweening python3-xlib python-xlib pyclick
 
 packages=(
     "python-xlib==0.33"
@@ -150,9 +148,12 @@ packages=(
     "mouseinfo==0.1.3"
     "pygetwindow==0.0.9"
     "pyscreeze==0.1.28"
+    "pynput==1.7.6"
+    "PyAutoGUI==0.9.53"
+    "pyclick==0.0.2"
 )
 
-# Install dependencies first
+# Install dependencies in order
 for package in "${packages[@]}"; do
     echo_step "Installing $package"
     $VENV_PYTHON -m pip install --no-cache-dir "$package"
@@ -161,19 +162,6 @@ for package in "${packages[@]}"; do
         exit 1
     fi
 done
-
-# Install PyAutoGUI without dependencies
-echo_step "Installing PyAutoGUI without dependencies"
-$VENV_PYTHON -m pip install --no-cache-dir --no-deps PyAutoGUI==0.9.53
-
-# Verify the installation
-echo_step "Verifying PyAutoGUI installation"
-$VENV_PYTHON -c "
-import pyautogui
-print('PyAutoGUI version:', pyautogui.__version__)
-print('PyAutoGUI location:', pyautogui.__file__)
-"
-check_success "PyAutoGUI verification"
 
 echo_step "Cleaning up"
 cd - > /dev/null
