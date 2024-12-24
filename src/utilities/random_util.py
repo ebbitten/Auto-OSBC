@@ -2,7 +2,7 @@ import math
 import random
 import secrets
 from datetime import datetime
-from typing import List, Union
+from typing import List, Union, Tuple, Optional
 
 import numpy as np
 
@@ -196,6 +196,18 @@ def random_chance(probability: float) -> bool:
     if probability < 0.000 or probability > 1.000:
         raise ValueError("Probability must be between 0 and 1")
     return secrets.SystemRandom().random() < probability
+
+
+def random_float(min_val: float, max_val: float) -> float:
+    """Generate a random float between min_val and max_val."""
+    return truncated_normal_sample(min_val, max_val)
+
+
+def random_point(min_x: int, min_y: int, width: int, height: int) -> Tuple[int, int]:
+    """Generate a random point within the given bounds."""
+    x = int(truncated_normal_sample(min_x, min_x + width))
+    y = int(truncated_normal_sample(min_y, min_y + height))
+    return (x, y)
 
 
 if __name__ == "__main__":

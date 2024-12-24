@@ -21,6 +21,125 @@ OS Bot COLOR (OSBC) is a desktop client for controlling and monitoring automatio
    3. Install the depedencies ```pip install -r requirements.txt```
 5. Run `./src/*OSBC.py*` *(may need to restart IDE for it to recognize installed dependencies)*
 
+# Type Checking and Code Quality
+
+## Static Type Checking with mypy
+OSBC uses strict type checking to catch errors early. Before submitting any code changes:
+
+1. Install mypy if not already installed:
+   ```bash
+   pip install mypy
+   ```
+
+2. Run mypy on the source code:
+   ```bash
+   mypy src/
+   ```
+
+3. Fix any type errors that are reported. Common issues include:
+   - Missing type hints
+   - Incorrect return types
+   - Incompatible types in assignments
+   - Missing imports
+
+## Runtime Type and Attribute Checking
+OSBC provides two key decorators for runtime checks:
+
+1. `@validate_types`: Validates function argument and return types:
+   ```python
+   @validate_types
+   def my_function(arg1: int, arg2: str) -> bool:
+       return isinstance(arg2, str)
+   ```
+
+2. `@validate_module_attributes`: Ensures required module attributes exist:
+   ```python
+   @validate_module_attributes('rd.truncated_normal_sample', 'rd.random_chance')
+   def my_function() -> None:
+       value = rd.truncated_normal_sample(0, 1)
+   ```
+
+## Development Best Practices
+
+1. Type Hints:
+   - Always add type hints to function arguments and return values
+   - Use `Optional[Type]` for values that might be None
+   - Use `Union[Type1, Type2]` for values that could be multiple types
+   - Use `TypeGuard` for type narrowing functions
+
+   ```python
+   from typing import Optional, Union, TypeGuard
+   
+   def process_value(value: Optional[Union[int, float]]) -> None:
+       if value is not None:
+           print(value + 1)
+   
+   def is_valid_point(obj: Any) -> TypeGuard[Point]:
+       return isinstance(obj, Point)
+   ```
+
+2. Attribute Checking:
+   - Use `hasattr()` to check for attribute existence
+   - Use the `@validate_module_attributes` decorator for module dependencies
+   - Add required attributes to function documentation
+
+3. Error Handling:
+   - Use type-specific exception handling
+   - Log detailed error information
+   - Include stack traces in debug mode
+
+4. Pre-commit Checks:
+   Run these checks before committing code:
+   ```bash
+   # Run static type checking
+   mypy src/
+
+   # Run linter (if configured)
+   flake8 src/
+
+   # Run tests (if available)
+   pytest
+   ```
+
+## Common Issues and Solutions
+
+1. Missing Attributes:
+   ```python
+   # Wrong:
+   result = module.some_function()  # Might raise AttributeError
+   
+   # Right:
+   @validate_module_attributes('module.some_function')
+   def my_function():
+       result = module.some_function()
+   ```
+
+2. Type Checking:
+   ```python
+   # Wrong:
+   def process_point(point):  # No type hints
+       return point.x + 10
+   
+   # Right:
+   def process_point(point: Point) -> int:
+       return point.x + 10
+   ```
+
+3. Optional Values:
+   ```python
+   # Wrong:
+   def find_item(items: List[str]) -> str:
+       return next(iter(items))  # Might raise StopIteration
+   
+   # Right:
+   def find_item(items: List[str]) -> Optional[str]:
+       return next(iter(items), None)
+   ```
+
+For more information about type checking and best practices, see the [Wiki](https://github.com/kelltom/OSRS-Bot-COLOR/wiki).
+
+---
+
 # Documentation
 
 See the [Wiki](https://github.com/kelltom/OSRS-Bot-COLOR/wiki) for tutorials, and software design information.
