@@ -28,6 +28,7 @@ class OSRSMining(OSRSBot):
         ores_mined (int): Counter for mined ores
         failed_searches (int): Counter for failed rock searches
         attempts_before_drop (int): Number of mining attempts before dropping inventory
+        drop_chance (float): Chance to drop inventory
         debug_dir (str): Directory for debug screenshots
         debug_mode (bool): Whether debug mode is enabled
     """
@@ -45,7 +46,8 @@ class OSRSMining(OSRSBot):
         self.tag_color = clr.PINK  # This should be a color object with lower/upper bounds
         self.ores_mined: int = 0
         self.failed_searches: int = 0
-        self.attempts_before_drop: int = 4
+        self.attempts_before_drop: int = 22
+        self.drop_chance: float = 0.1  # Default 10% chance to drop
         self.debug_mode: bool = False  # Default to False, can be enabled through options
         
         # Create debug directory if it doesn't exist
@@ -58,6 +60,7 @@ class OSRSMining(OSRSBot):
         self.options_builder.add_checkbox_option("take_breaks", "Take breaks?", [" "])
         self.options_builder.add_dropdown_option("rock_type", "Rock type", ["Iron", "Coal", "Mithril", "Adamantite"])
         self.options_builder.add_slider_option("attempts_before_drop", "Mining attempts before inventory drop (23-27)", 23, 27)
+        self.options_builder.add_slider_option("drop_chance", "Chance to drop inventory (0-100%)", 0, 100)
         self.options_builder.add_checkbox_option("debug_mode", "Enable debug mode?", [" "])
 
     @validate_types
@@ -79,8 +82,10 @@ class OSRSMining(OSRSBot):
                 self.rock_type = options[option]
             elif option == "attempts_before_drop":
                 self.attempts_before_drop = int(options[option])
+            elif option == "drop_chance":
+                self.drop_chance = float(options[option]) / 100.0  # Convert percentage to decimal
             elif option == "debug_mode":
-                self.debug_mode = options[option] != []  # Add debug mode handling
+                self.debug_mode = options[option] != []
             else:
                 self.log_msg(f"Unknown option: {option}")
 
@@ -88,6 +93,7 @@ class OSRSMining(OSRSBot):
         self.log_msg(f"Bot will{' ' if self.take_breaks else ' not '}take breaks")
         self.log_msg(f"Rock type: {self.rock_type}")
         self.log_msg(f"Attempts before drop: {self.attempts_before_drop}")
+        self.log_msg(f"Drop chance: {self.drop_chance*100:.1f}%")
         self.log_msg(f"Debug mode: {'enabled' if self.debug_mode else 'disabled'}")
         self.options_set = True
 
@@ -120,12 +126,12 @@ class OSRSMining(OSRSBot):
                 if attempts >= self.attempts_before_drop:
                     self.log_msg(f"Inventory full! ({attempts}/{self.attempts_before_drop} attempts)")
                     
-                    # 10% chance to drop inventory instead of using banker's note
-                    if rd.random_chance(0.1):
-                        self.log_msg("Randomly chosen to drop inventory")
+                    # Use drop_chance setting for inventory management decision
+                    if rd.random_chance(self.drop_chance):
+                        self.log_msg(f"Randomly chosen to drop inventory ({self.drop_chance*100:.1f}% chance)")
                         self.shift_drop_inventory()
                     else:
-                        self.log_msg("Using banker's note")
+                        self.log_msg(f"Using banker's note ({(1-self.drop_chance)*100:.1f}% chance)")
                         self.use_bankers_note()
                         
                     attempts = 0
@@ -157,13 +163,13 @@ class OSRSMining(OSRSBot):
                     
                     # Click and wait for mining
                     self.mouse.click()
+                    attempts += 1
                     time.sleep(0.5)  # Wait after click
                     
                     if self.debug_mode:
                         self.log_msg("Mouse clicked, waiting for mining...")
                         
                     if self.wait_for_mining_completion():
-                        attempts += 1
                         self.ores_mined += 1
                         self.log_msg(f"Ores mined: {self.ores_mined} (attempts: {attempts}/{self.attempts_before_drop})")
                         if self.debug_mode:
@@ -694,47 +700,3 @@ class OSRSMining(OSRSBot):
             self.log_msg(f"Error type: {type(e).__name__}")
             self.log_msg(f"Error traceback: {traceback.format_exc()}")
             return None 
-
-    @validate_types
-    def use_bankers_note(self) -> bool:
-        """
-        Use banker's note to note inventory items.
-        
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        try:
-            self.log_msg("Using banker's note...")
-            
-            # Find banker's note in inventory
-            note_slot = None
-            for slot in self.win.inventory_slots:
-                self.mouse.move_to(slot.random_point())
-                time.sleep(0.1)
-                if self.mouseover_text(contains="Banker's note"):
-                    note_slot = slot
-                    break
-            
-            if not note_slot:
-                self.log_msg("Could not find banker's note")
-                return False
-            
-            # Click banker's note
-            self.mouse.move_to(note_slot.random_point())
-            self.mouse.click()
-            time.sleep(0.5)
-            
-            # Click "Note all" option
-            for slot in self.win.inventory_slots[:-1]:  # Skip last slot (banker's note)
-                self.mouse.move_to(slot.random_point())
-                self.mouse.click()
-                time.sleep(rd.random_float(0.1, 0.2))
-            
-            self.log_msg("Successfully used banker's note")
-            return True
-            
-        except Exception as e:
-            self.log_msg(f"Error using banker's note: {str(e)}")
-            self.log_msg(f"Error type: {type(e).__name__}")
-            self.log_msg(f"Error traceback: {traceback.format_exc()}")
-            return False 
