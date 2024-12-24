@@ -45,8 +45,8 @@ class OSRSMining(OSRSBot, launcher.Launchable):
         self.tag_color = clr.PINK  # This should be a color object with lower/upper bounds
         self.ores_mined: int = 0
         self.failed_searches: int = 0
-        self.attempts_before_drop: int = 26
-        self.debug_mode: bool = True  # Default to False, can be enabled through options
+        self.attempts_before_drop: int = 4
+        self.debug_mode: bool = False  # Default to False, can be enabled through options
         
         # Create debug directory if it doesn't exist
         self.debug_dir: str = "debug_screenshots/mining"
@@ -106,6 +106,7 @@ class OSRSMining(OSRSBot, launcher.Launchable):
         start_time: float = time.time()
         end_time: float = self.running_time * 60
         attempts: int = 0
+        last_inventory_check: float = time.time()
         
         # Switch to inventory tab first
         self.log_msg("Switching to inventory tab...")
@@ -115,13 +116,23 @@ class OSRSMining(OSRSBot, launcher.Launchable):
         
         while time.time() - start_time < end_time:
             try:
-                # Check if inventory needs dropping
+                # Check if inventory needs managing
                 if attempts >= self.attempts_before_drop:
-                    self.shift_drop_inventory()
+                    self.log_msg(f"Inventory full! ({attempts}/{self.attempts_before_drop} attempts)")
+                    
+                    # 10% chance to drop inventory instead of using banker's note
+                    if rd.random_chance(0.1):
+                        self.log_msg("Randomly chosen to drop inventory")
+                        self.shift_drop_inventory()
+                    else:
+                        self.log_msg("Using banker's note")
+                        self.use_bankers_note()
+                        
                     attempts = 0
+                    last_inventory_check = time.time()
                     continue
                 
-                self.log_msg("=== Starting rock search cycle ===")
+                self.log_msg(f"=== Starting rock search cycle ({attempts}/{self.attempts_before_drop} attempts) ===")
                 if self.debug_mode:
                     self.log_msg("Calling find_nearest_rock...")
                     
@@ -154,7 +165,7 @@ class OSRSMining(OSRSBot, launcher.Launchable):
                     if self.wait_for_mining_completion():
                         attempts += 1
                         self.ores_mined += 1
-                        self.log_msg(f"Ores mined: {self.ores_mined}")
+                        self.log_msg(f"Ores mined: {self.ores_mined} (attempts: {attempts}/{self.attempts_before_drop})")
                         if self.debug_mode:
                             self.log_msg(f"Debug: Mining successful, total attempts: {attempts}")
                         self.take_break()
@@ -193,10 +204,8 @@ class OSRSMining(OSRSBot, launcher.Launchable):
     @validate_types
     def shift_drop_inventory(self) -> None:
         """
-        Drop inventory using shift-click.
-        
-        Returns:
-            None
+        Drop inventory using shift-click, skipping first and last columns.
+        Drops the middle 26 items (skips first column and last column).
         """
         try:
             self.log_msg("Dropping inventory...")
@@ -207,11 +216,14 @@ class OSRSMining(OSRSBot, launcher.Launchable):
                 self.log_msg("No inventory slots found")
                 return
             
-            # Drop first 27 slots (leave last slot empty)
-            for slot in slots[:-1]:
-                self.mouse.move_to(slot.random_point())
-                self.mouse.click(button="left", shift=True)
-                time.sleep(rd.random_float(0.1, 0.2))  # Small delay between drops
+            # Drop middle 26 slots (skip first and last columns)
+            for row in range(7):  # 7 rows
+                for col in range(1, 3):  # Middle 2 columns (skip first and last)
+                    slot_index = row * 4 + col  # 4 columns total
+                    slot = slots[slot_index]
+                    self.mouse.move_to(slot.random_point())
+                    self.mouse.click(button="left", shift=True)
+                    time.sleep(rd.random_float(0.1, 0.2))  # Small delay between drops
             
             self.log_msg("Inventory dropped")
             
@@ -523,6 +535,21 @@ class OSRSMining(OSRSBot, launcher.Launchable):
             self.log_msg(f"Error traceback: {traceback.format_exc()}") 
 
     @validate_types
+    def should_break(self) -> bool:
+        """Check if the bot should stop running"""
+        try:
+            if not self.thread:
+                self.log_msg("Stop detected: Thread is None")
+                return True
+            if not self.thread.is_alive():
+                self.log_msg("Stop detected: Thread is not alive")
+                return True
+            return False
+        except Exception as e:
+            self.log_msg(f"Error checking thread status: {str(e)}")
+            return True
+
+    @validate_types
     def find_nearest_rock(self) -> Optional[Point]:
         """
         Find nearest tagged rock.
@@ -606,8 +633,8 @@ class OSRSMining(OSRSBot, launcher.Launchable):
                         self.log_msg(f"  Size: {w}x{h}")
                         self.log_msg(f"  Position: ({x}, {y})")
                     
-                    # Check if rock matches criteria
-                    if 1000 < area < 70000 and abs(w - h) < 100:
+                    # Check if rock matches criteria - increased area range
+                    if 1000 < area < 100000 and abs(w - h) < 100:  # Increased max area to 100000
                         # Calculate center point with slight offset below center
                         cx = x + w // 2
                         cy = y + int(h * 0.6)  # Aim slightly below center
@@ -663,3 +690,47 @@ class OSRSMining(OSRSBot, launcher.Launchable):
             self.log_msg(f"Error type: {type(e).__name__}")
             self.log_msg(f"Error traceback: {traceback.format_exc()}")
             return None 
+
+    @validate_types
+    def use_bankers_note(self) -> bool:
+        """
+        Use banker's note to note inventory items.
+        
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            self.log_msg("Using banker's note...")
+            
+            # Find banker's note in inventory
+            note_slot = None
+            for slot in self.win.inventory_slots:
+                self.mouse.move_to(slot.random_point())
+                time.sleep(0.1)
+                if self.mouseover_text(contains="Banker's note"):
+                    note_slot = slot
+                    break
+            
+            if not note_slot:
+                self.log_msg("Could not find banker's note")
+                return False
+            
+            # Click banker's note
+            self.mouse.move_to(note_slot.random_point())
+            self.mouse.click()
+            time.sleep(0.5)
+            
+            # Click "Note all" option
+            for slot in self.win.inventory_slots[:-1]:  # Skip last slot (banker's note)
+                self.mouse.move_to(slot.random_point())
+                self.mouse.click()
+                time.sleep(rd.random_float(0.1, 0.2))
+            
+            self.log_msg("Successfully used banker's note")
+            return True
+            
+        except Exception as e:
+            self.log_msg(f"Error using banker's note: {str(e)}")
+            self.log_msg(f"Error type: {type(e).__name__}")
+            self.log_msg(f"Error traceback: {traceback.format_exc()}")
+            return False 
