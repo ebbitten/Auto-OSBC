@@ -171,3 +171,6 @@ src/runelite_settings/profile_manager_paths.json
 
 # Photoshop files
 *.psd
+
+# Debug screensohts 
+debug_screenshots

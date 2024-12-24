@@ -16,7 +16,7 @@ from model.bot import BotStatus
 from typing_extensions import TypeGuard
 from utilities.type_utils import validate_module_attributes
 
-class OSRSMining(OSRSBot, launcher.Launchable):
+class OSRSMining(OSRSBot):
     """
     Mining bot for OSRS.
     
@@ -218,7 +218,11 @@ class OSRSMining(OSRSBot, launcher.Launchable):
             
             # Drop middle 26 slots (skip first and last columns)
             for row in range(7):  # 7 rows
-                for col in range(1, 3):  # Middle 2 columns (skip first and last)
+                for col in range(0, 4):  # Middle 2 columns (skip first and last)
+                    if row == 0 and col == 0:
+                        continue
+                    if row == 6 and col == 3:
+                        continue
                     slot_index = row * 4 + col  # 4 columns total
                     slot = slots[slot_index]
                     self.mouse.move_to(slot.random_point())
