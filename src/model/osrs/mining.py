@@ -1,10 +1,12 @@
 import time
-from typing import Union, Optional, List, Dict, Any
+from typing import Union, Optional, List, Dict, Any, cast
 import os
 import traceback
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
+from numpy.typing import NDArray
 
 import utilities.color as clr
 import utilities.game_launcher as launcher
@@ -15,6 +17,10 @@ from utilities.geometry import Point, Rectangle
 from model.bot import BotStatus
 from typing_extensions import TypeGuard
 from utilities.type_utils import validate_module_attributes
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    ArrayLike = NDArray[np.uint8]
 
 class OSRSMining(OSRSBot):
     """
@@ -129,7 +135,9 @@ class OSRSMining(OSRSBot):
                     # Use drop_chance setting for inventory management decision
                     if rd.random_chance(self.drop_chance):
                         self.log_msg(f"Randomly chosen to drop inventory ({self.drop_chance*100:.1f}% chance)")
-                        self.shift_drop_inventory()
+                        # Skip first and last columns (slots 0-3 and 24-27)
+                        skip_slots = [0,27]
+                        self.drop_all(skip_slots=skip_slots)
                     else:
                         self.log_msg(f"Using banker's note ({(1-self.drop_chance)*100:.1f}% chance)")
                         self.use_bankers_note()
@@ -208,41 +216,6 @@ class OSRSMining(OSRSBot):
         return isinstance(obj, Rectangle)
 
     @validate_types
-    def shift_drop_inventory(self) -> None:
-        """
-        Drop inventory using shift-click, skipping first and last columns.
-        Drops the middle 26 items (skips first column and last column).
-        """
-        try:
-            self.log_msg("Dropping inventory...")
-            
-            # Get inventory slots from window
-            slots = self.win.inventory_slots
-            if not slots:
-                self.log_msg("No inventory slots found")
-                return
-            
-            # Drop middle 26 slots (skip first and last columns)
-            for row in range(7):  # 7 rows
-                for col in range(0, 4):  # Middle 2 columns (skip first and last)
-                    if row == 0 and col == 0:
-                        continue
-                    if row == 6 and col == 3:
-                        continue
-                    slot_index = row * 4 + col  # 4 columns total
-                    slot = slots[slot_index]
-                    self.mouse.move_to(slot.random_point())
-                    self.mouse.click(button="left", shift=True)
-                    time.sleep(rd.random_float(0.1, 0.2))  # Small delay between drops
-            
-            self.log_msg("Inventory dropped")
-            
-        except Exception as e:
-            self.log_msg(f"Error dropping inventory: {str(e)}")
-            self.log_msg(f"Error type: {type(e).__name__}")
-            self.log_msg(f"Error traceback: {traceback.format_exc()}")
-
-    @validate_types
     def wait_for_mining_completion(self) -> bool:
         """
         Wait for mining animation to complete.
@@ -279,7 +252,6 @@ class OSRSMining(OSRSBot):
             return False
 
     @validate_types
-    @validate_module_attributes('rd.truncated_normal_sample', 'rd.random_chance')
     def take_break(self) -> None:
         """Take a random break between actions."""
         if not self.take_breaks:

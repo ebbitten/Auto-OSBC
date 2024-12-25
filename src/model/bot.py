@@ -255,7 +255,7 @@ class Bot(ABC):
             p = slot.random_point()
             self.mouse.move_to(
                 (p[0], p[1]),
-                mouseSpeed="fastest",
+                mouseSpeed="fast",
                 knotsCount=1,
                 offsetBoundaryY=40,
                 offsetBoundaryX=40,

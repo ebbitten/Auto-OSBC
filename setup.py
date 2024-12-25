@@ -1,15 +1,19 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="os-bot-color",
+    name="auto_osbc",
     version="0.1",
-    packages=find_packages(where='src'),
-    package_dir={'': 'src'},
+    package_dir={"": "src"},
+    packages=find_packages(where="src"),
     install_requires=[
-        "customtkinter",
-        "pillow",
-        "pynput",
-        "tktooltip",
-        # Add any other dependencies your project needs
+        'numpy',
+        'opencv-python',
+        'pillow',
+        'pyautogui',
+        'mypy',
+        'pylint',
+        'customtkinter',
+        'pynput',
+        'tktooltip'
     ],
 )
