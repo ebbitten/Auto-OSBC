@@ -1,6 +1,6 @@
 from typing import Any, Callable, TypeVar, cast
 from functools import wraps
-import inspect
+import sys
 
 T = TypeVar('T')
 
@@ -38,19 +38,16 @@ def validate_module_attributes(*required_attrs: str) -> Callable[[Callable[..., 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
-            # Get all imported modules in the function's global scope
-            globals_dict = inspect.getcurrentframe().f_back.f_globals  # type: ignore
-            
-            # Check each module referenced in the function
-            source = inspect.getsource(func)
-            for line in source.split('\n'):
-                # Look for module usage patterns
-                for attr in required_attrs:
-                    if '.' in attr:
-                        module_name, attr_name = attr.split('.', 1)
-                        if module_name in globals_dict:
-                            module = globals_dict[module_name]
-                            check_attributes(module, [attr_name])
+            # Check each module referenced in the required attributes
+            for attr in required_attrs:
+                if '.' in attr:
+                    module_name, attr_name = attr.split('.', 1)
+                    # Get module from sys.modules if it's imported
+                    if module_name in sys.modules:
+                        module = sys.modules[module_name]
+                        check_attributes(module, [attr_name])
+                    else:
+                        raise ImportError(f"Module {module_name} not imported")
             
             return func(*args, **kwargs)
         return wrapper

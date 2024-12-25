@@ -1,0 +1,130 @@
+[MASTER]
+# Use multiple processes to speed up Pylint
+jobs=4
+
+# List of plugins to load
+load-plugins=pylint.extensions.check_elif,
+            pylint.extensions.docparams,
+            pylint.extensions.docstyle,
+            pylint.extensions.typing
+
+# Python code to execute
+init-hook='import sys; sys.path.append(".")'
+
+[MESSAGES CONTROL]
+# Enable all checks by default
+enable=all
+
+# Disable specific checks
+disable=C0111,  # missing-docstring
+        C0103,  # invalid-name
+        R0903,  # too-few-public-methods
+        R0913,  # too-many-arguments
+        W0511,  # fixme
+        W0703   # broad-except
+
+[REPORTS]
+# Set the output format
+output-format=colorized
+
+# Include a brief explanation of each error
+msg-template={path}:{line}: [{msg_id}({symbol}), {obj}] {msg}
+
+[FORMAT]
+# Maximum number of characters on a single line
+max-line-length=120
+
+[BASIC]
+# Regular expression which should only match function or class names
+function-rgx=[a-z_][a-z0-9_]{2,50}$
+class-rgx=[A-Z_][a-zA-Z0-9]+$
+
+# Good variable names
+good-names=i,j,k,ex,Run,_,x,y,w,h
+
+[TYPECHECK]
+# List of module names for which member attributes should not be checked
+ignored-modules=numpy,cv2,PIL
+
+# List of classes names for which member attributes should not be checked
+ignored-classes=numpy,cv2
+
+# Enable attribute type checking
+check-protected-access-in-special-methods=yes
+check-protected-access=yes
+check-type-checking=yes
+check-classes=yes
+check-methods=yes
+check-variables=yes
+check-imports=yes
+check-attributes=yes
+
+[MISCELLANEOUS]
+# List of note tags to take into consideration
+notes=FIXME,XXX,TODO
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=4
+
+[VARIABLES]
+# A regular expression matching the name of dummy variables
+dummy-variables-rgx=_$|dummy
+
+# List of additional names to consider as builtins
+additional-builtins=
+
+[CLASSES]
+# List of method names used to declare (i.e. assign) instance attributes
+defining-attr-methods=__init__,__new__,setUp
+
+# List of valid names for the first argument in a class method
+valid-classmethod-first-arg=cls
+
+# Enable attribute type checking
+check-protected-access-in-special-methods=yes
+check-protected-access=yes
+check-type-checking=yes
+check-classes=yes
+check-methods=yes
+check-variables=yes
+check-imports=yes
+check-attributes=yes
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args=10
+
+# Maximum number of locals for function / method body
+max-locals=20
+
+# Maximum number of return / yield for function / method body
+max-returns=6
+
+# Maximum number of statements in function / method body
+max-statements=50
+
+# Maximum number of parents for a class (see R0901).
+max-parents=7
+
+[IMPORTS]
+# Allow wildcard imports from modules that define __all__
+allow-wildcard-with-all=no
+
+# Enable import checking
+analyse-fallback-blocks=yes
+deprecated-modules=regsub,TERMIOS,Bastion,rexec
+import-graph=
+ext-import-graph=
+int-import-graph=
+known-standard-library=
+known-third-party=enchant
+
+[EXCEPTIONS]
+# Exceptions that will emit a warning when caught
+overgeneral-exceptions=Exception
+
+[TYPING]
+# Enable type checking
+py-version = 3.10
+runtime-typing = true 
