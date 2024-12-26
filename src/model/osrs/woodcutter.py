@@ -117,8 +117,10 @@ class OSRSWoodcutter(OSRSBot, launcher.Launchable):
                 
                 if not self.mouseover_text(contains="Chop"):
                     self.log_msg("No chop option, waiting...")
-                    time.sleep(1.5)
-                    continue
+                    if not self.mouseover_text(contains="Cut"):
+                        self.log_msg("No cut option either, waiting...")
+                        time.sleep(1.5)
+                        continue
                     
                 self.mouse.click()
                 time.sleep(3)
