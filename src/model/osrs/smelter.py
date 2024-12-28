@@ -1,10 +1,10 @@
+import os
 import time
-from typing import Union, Optional
+import traceback
+from typing import Optional, Union
 
 import cv2
 import numpy as np
-import os
-import traceback
 
 import utilities.color as clr
 import utilities.game_launcher as launcher
@@ -19,7 +19,7 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
         bot_title = "Blast Furnace Smelter"
         description = "Smelts bars at the blast furnace using Banker's Note. Position near the conveyor belt."
         super().__init__(bot_title=bot_title, description=description)
-        
+
         # Initialize default values
         self.running_time = 360  # Default of 60 minutes
         self.take_breaks = False
@@ -27,7 +27,7 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
         self.bars_smelted = 0
         self.failed_searches = 0
         self.debug_mode = False  # Add debug mode flag
-        
+
         # Define ore types and their properties
         self.ore_types = {
             "Bronze": {"coal_needed": 0, "xp": 6.2},
@@ -37,11 +37,11 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
             "Adamant": {"coal_needed": 3, "xp": 37.5},
             "Rune": {"coal_needed": 4, "xp": 50},
         }
-        
+
         # Add color constants
         self.BELT_COLOR = clr.PINK
         self.COLLECTION_COLOR = clr.RED
-        
+
         # Create debug directory
         self.debug_dir = "debug_screenshots/smelting"
         os.makedirs(self.debug_dir, exist_ok=True)
@@ -72,7 +72,7 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
                 self.log_msg(f"Unknown option: {option}")
                 self.options_set = False
                 return
-        
+
         self.log_msg(f"Running time: {self.running_time} minutes")
         self.log_msg(f"Bot will{' ' if self.take_breaks else ' not '}take breaks")
         self.log_msg(f"Ore type: {self.ore_type}")
@@ -84,45 +84,45 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
         Main bot loop for the blast furnace smelting process
         """
         self.log_msg("Starting blast furnace smelting bot...")
-        
+
         # Main timing
         start_time = time.time()
         end_time = self.running_time * 60
-        
+
         while time.time() - start_time < end_time:
             # Check if bot should stop
             if self.should_stop():
                 self.log_msg("Bot stopped by user.")
                 break
-            
+
             try:
                 # Main smelting cycle
                 if not self.withdraw_ore():
                     continue
-                    
+
                 if not self.put_on_belt():  # Long delay after ore
                     continue
-                    
+
                 if self.ore_types[self.ore_type]["coal_needed"] > 0:
                     for i in range(self.ore_types[self.ore_type]["coal_needed"]):
                         if not self.withdraw_coal():
                             continue
                         if not self.put_coal_on_belt():  # Short delay for coal
                             continue
-                
+
                 if not self.collect_bars():
                     continue
-                    
+
                 if not self.deposit_bars():
                     continue
-                    
+
                 self.bars_smelted += 1
                 self.log_msg(f"Successfully smelted {self.bars_smelted} sets of bars")
-                
+
             except Exception as e:
                 self.log_msg(f"Error in main loop: {e}")
                 time.sleep(2)
-                
+
         self.log_msg(f"Bot finished. Total runtime: {int((time.time() - start_time) / 60)} minutes")
         self.log_msg(f"Total bars smelted: {self.bars_smelted}")
 
@@ -200,7 +200,7 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
 
             self.mouse.move_to(belt_point, duration=rd.truncated_normal_sample(0.5, 1.0))
             self.mouse.click()
-            
+
             # Long delay for running back from ore deposit
             time.sleep(rd.truncated_normal_sample(4500, 6000) / 1000)
 
@@ -223,7 +223,7 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
 
             self.mouse.move_to(belt_point, duration=rd.truncated_normal_sample(0.5, 1.0))
             self.mouse.click()
-            
+
             # Short delay since we're already at the belt
             time.sleep(rd.truncated_normal_sample(600, 800) / 1000)
 
@@ -251,13 +251,13 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
                 # Move mouse to collection point
                 self.mouse.move_to(collection_point, mouseSpeed="medium")
                 time.sleep(0.5)  # Wait after movement
-                
+
                 # Take debug screenshot
                 if self.debug_mode:
                     self.take_debug_screenshot(f"collect_bars_attempt_{attempt}")
                     current_text = self.get_mouseover_text()  # Get current mouseover text for debugging
                     self.log_msg(f"Current mouseover text: '{current_text}'")
-                
+
                 # Verify we can click
                 if not self.mouseover_text(contains="Take Bar"):
                     self.log_msg(f"No 'Take bar' option found (attempt {attempt + 1}/{max_retries})")
@@ -266,18 +266,19 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
                         self.stop()
                     time.sleep(1)
                     continue
-                
+
                 # Click the collection point
                 self.mouse.click()
-                
+
                 # Wait for character to run to collection point (2-3 seconds)
                 time.sleep(rd.truncated_normal_sample(4500, 6000) / 1000)
-                
+
                 # Press spacebar using pyautogui
                 import pyautogui as pag
-                pag.press('space')
+
+                pag.press("space")
                 time.sleep(rd.truncated_normal_sample(200, 400) / 1000)  # Short delay after collection
-                
+
                 return True
 
             self.log_msg("Failed to collect bars after all attempts")
@@ -336,52 +337,52 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
             # Create a mask to ignore the bottom portion of the screen
             height, width = game_view.shape[:2]
             bottom_cutoff = int(height * 0.7)  # Ignore bottom 30% of screen
-            
+
             # Convert to HSV for better pink detection
             hsv = cv2.cvtColor(game_view, cv2.COLOR_BGR2HSV)
-            
+
             # Define pink color range for the conveyor belt (bright pink/magenta)
             lower_pink = np.array([150, 100, 200])  # Increased brightness threshold
             upper_pink = np.array([165, 255, 255])
-            
+
             # Create mask
             pink_mask = cv2.inRange(hsv, lower_pink, upper_pink)
-            
+
             # Mask out bottom portion
             pink_mask[bottom_cutoff:, :] = 0
-            
+
             # Save debug mask and log color values
             timestamp = time.strftime("%Y%m%d_%H%M%S")
             cv2.imwrite(os.path.join(self.debug_dir, f"debug_belt_mask_{timestamp}.png"), pink_mask)
             self.log_msg(f"Using HSV pink range - Lower: {lower_pink}, Upper: {upper_pink}")
-            
+
             # Find contours
             contours, _ = cv2.findContours(pink_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
+
             # Create debug image
             debug_img = game_view.copy()
             cv2.line(debug_img, (0, bottom_cutoff), (width, bottom_cutoff), (0, 255, 0), 2)
-            
+
             if contours:
                 self.log_msg(f"Found {len(contours)} pink objects")
-                
+
                 # Filter and analyze contours
                 valid_contours = []
                 for i, contour in enumerate(contours):
                     area = cv2.contourArea(contour)
                     x, y, w, h = cv2.boundingRect(contour)
-                    aspect_ratio = float(w)/h if h != 0 else 0
-                    
+                    aspect_ratio = float(w) / h if h != 0 else 0
+
                     # Debug logging for each contour
                     self.log_msg(f"Contour {i}:")
                     self.log_msg(f"  Area: {area}")
                     self.log_msg(f"  Size: {w}x{h}")
                     self.log_msg(f"  Aspect ratio: {aspect_ratio:.2f}")
                     self.log_msg(f"  Position: ({x}, {y})")
-                    
+
                     # Draw all contours in red first
                     cv2.drawContours(debug_img, [contour], -1, (0, 0, 255), 2)
-                    
+
                     # More lenient size constraints
                     if 5000 < area < 25000:  # Much wider area range
                         self.log_msg(f"  Area check passed")
@@ -394,41 +395,41 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
 
                 # Save debug image with all contours
                 cv2.imwrite(os.path.join(self.debug_dir, f"debug_belt_all_contours_{timestamp}.png"), debug_img)
-                
+
                 self.log_msg(f"Found {len(valid_contours)} valid contours")
-                
+
                 if valid_contours:
                     # Get center point of game view
                     center = self.win.game_view.get_center()
-                    
+
                     # Find closest valid pink square
                     closest_point = None
                     min_distance = float("inf")
-                    
+
                     for contour in valid_contours:
                         x, y, w, h = cv2.boundingRect(contour)
                         cx = x + w // 2
                         cy = y + h // 2
-                        
+
                         distance = ((cx - center.x) ** 2 + (cy - center.y) ** 2) ** 0.5
-                        
+
                         if distance < min_distance:
                             min_distance = distance
                             closest_point = Point(cx, cy)
-                    
+
                     if closest_point:
                         # Draw selected point on debug image
                         cv2.circle(debug_img, (closest_point.x, closest_point.y), 5, (255, 0, 0), -1)
                         cv2.imwrite(os.path.join(self.debug_dir, f"debug_belt_selected_{timestamp}.png"), debug_img)
-                        
+
                         # Translate coordinates
                         game_view_rect = self.win.game_view
                         abs_x = game_view_rect.left + closest_point.x
                         abs_y = game_view_rect.top + closest_point.y
-                        
+
                         self.log_msg(f"Found valid conveyor belt at: ({abs_x}, {abs_y})")
                         return Point(abs_x, abs_y)
-                
+
                 self.log_msg("No valid pink squares found")
                 return None
 
@@ -486,7 +487,7 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
                 for i, contour in enumerate(contours):
                     area = cv2.contourArea(contour)
                     x, y, w, h = cv2.boundingRect(contour)
-                    aspect_ratio = float(w)/h if h != 0 else 0
+                    aspect_ratio = float(w) / h if h != 0 else 0
 
                     # Debug logging for each contour
                     self.log_msg(f"Contour {i}:")
@@ -581,4 +582,4 @@ class OSRSSmelter(OSRSBot, launcher.Launchable):
             return False
         except Exception as e:
             self.log_msg(f"Error checking thread status: {str(e)}")
-            return True 
+            return True
