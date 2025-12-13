@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(grep:*)",
+      "Bash(python3:*)",
+      "Read(/usr/lib/**)",
+      "Bash(pip3 list:*)",
+      "Bash(pytest:*)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(pip3 install:*)",
+      "Bash(venv/bin/python -m pip install:*)",
+      "Bash(venv/bin/python -m pytest tests/ -v)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(mypy:*)",
+      "Bash(python -m pytest tests/dependencies/test_core_imports.py::TestDevelopmentDependencies::test_mypy_import -v)",
+      "Bash(python -m pytest tests/integration/test_screenshot_capture.py::TestGeometryScreenshots::test_rectangle_screenshot_method -v -s)",
+      "Bash(python:*)",
+      "Bash(echo $DISPLAY)",
+      "Bash(sudo apt:*)",
+      "Bash(sudo apt install:*)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebFetch(domain:code.claude.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

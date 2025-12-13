@@ -11,15 +11,60 @@ OS Bot COLOR (OSBC) is a desktop client for controlling and monitoring automatio
 ⭐ If you like this project, please leave a Star :)
  -->
 
-# Developer Setup <img height=20 src="documentation/media/windows_logo.png"/>
-1. Install [Python 3.10](https://www.python.org/downloads/release/python-3109/) *(not compatible with other major versions)*
-2. Clone/download this repository
-3. Open the project folder in your IDE of choice (Visual Studio Code recommended)
-4. Open the repository folder in a terminal window
-   1. Create a virtual environment ```py -3.10 -m venv env```
-   2. Activate the newly created virtual environment ```.\env\Scripts\activate```
-   3. Install the depedencies ```pip install -r requirements.txt```
-5. Run `./src/*OSBC.py*` *(may need to restart IDE for it to recognize installed dependencies)*
+# Installation
+
+## Supported Platforms
+- **Windows 10/11**
+- **Ubuntu 20.04/22.04**
+- **Other Linux distributions** (may work but not officially tested)
+
+## Quick Start (Recommended)
+
+### Windows 10/11
+1. **Download/clone** this repository
+2. **Run the installer**: Double-click `install-windows.bat` or run in Command Prompt:
+   ```batch
+   install-windows.bat
+   ```
+
+### Ubuntu 20/22
+1. **Download/clone** this repository  
+2. **Run the installer**:
+   ```bash
+   chmod +x install-ubuntu.sh
+   ./install-ubuntu.sh
+   ```
+
+### Universal (Cross-Platform)
+1. **Download/clone** this repository
+2. **Run the Python installer**:
+   ```bash
+   python install.py
+   ```
+
+## Manual Installation
+If automated installation fails:
+
+1. **Install Python 3.10+** from [python.org](https://www.python.org/downloads/)
+2. **Create virtual environment**:
+   ```bash
+   python -m venv venv
+   
+   # Windows
+   venv\Scripts\activate
+   
+   # Linux/Mac  
+   source venv/bin/activate
+   ```
+3. **Install Auto-OSBC**:
+   ```bash
+   pip install -e .
+   ```
+
+## Running the Application
+After installation:
+1. **Activate virtual environment** (see installation output for exact commands)
+2. **Run**: `python src/OSBC.py`
 
 # Type Checking and Code Quality
 

@@ -7,7 +7,6 @@ cycler==0.12.1
 darkdetect==0.8.0
 Deprecated==1.2.13
 distlib==0.3.8
-evdev==1.7.0
 ewmh==0.1.6
 filelock==3.13.3
 flake8==6.0.0
@@ -41,8 +40,6 @@ pyperclip==1.8.2
 PyRect==0.2.0
 PyScreeze==0.1.30
 python-dateutil==2.9.0.post0
-python-xlib==0.33
-python3-xlib==0.15
 pytweening==1.2.0
 pytz==2024.1
 PyWinCtl==0.0.42
@@ -55,4 +52,3 @@ toml==0.10.2
 urllib3==2.2.1
 virtualenv==20.25.1
 wrapt==1.16.0
-xlib==0.21

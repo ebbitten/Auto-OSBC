@@ -10,6 +10,8 @@ from typing import Callable, Union
 
 import psutil
 
+from utilities.platform_utils import get_platform
+
 # Path to the folder containing the RuneLite settings files.
 RL_SETTINGS_FOLDER_PATH: Path = Path(__file__).parent.parent.joinpath("runelite_settings")
 # Path to default profile copy location.
@@ -111,10 +113,16 @@ def launch_runelite(properties_path: Path, game_title: str, use_profile_manager:
     shutil.copyfile(src_path, dst_path)
 
     # Launch the game
-    if platform.system() == "Windows":
+    current_platform = get_platform()
+    if current_platform == "windows":
         subprocess.Popen([EXECPATH, EXECARG1, EXECARG2], creationflags=subprocess.DETACHED_PROCESS)
-    else:
+    elif current_platform in ["linux", "darwin"]:
+        # Linux and macOS use different subprocess options
         subprocess.Popen([EXECPATH, EXECARG1, EXECARG2], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    else:
+        # Fallback for unknown platforms
+        print(f"Warning: Unknown platform {current_platform}, using default subprocess options")
+        subprocess.Popen([EXECPATH, EXECARG1, EXECARG2])
     callback("Game launched. Please wait until you've logged into the game before starting the bot.")
     return True
 
