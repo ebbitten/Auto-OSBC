@@ -28,8 +28,7 @@ class TitleView(customtkinter.CTkFrame):
         # Logo
         self.logo_path = pathlib.Path(__file__).parent.parent.resolve()
         self.logo = ImageTk.PhotoImage(
-            Image.open(f"{self.logo_path}/images/ui/logo.png").resize((411, 64)),
-            Image.ANTIALIAS,
+            Image.open(f"{self.logo_path}/images/ui/logo.png").resize((411, 64), Image.LANCZOS)
         )
         self.label_logo = customtkinter.CTkLabel(self, image=self.logo, text="", font=body_med_font())
         self.label_logo.grid(row=1, column=0, columnspan=3, sticky="nsew", padx=15, pady=15)

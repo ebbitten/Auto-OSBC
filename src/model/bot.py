@@ -24,7 +24,7 @@ import utilities.random_util as rd
 from utilities.geometry import Point, Rectangle
 from utilities.mouse import Mouse
 from utilities.options_builder import OptionsBuilder
-from src.platform import terminate_thread
+from src.platform_utils import terminate_thread
 from utilities.window import Window, WindowInitializationError
 
 warnings.filterwarnings("ignore", category=UserWarning)

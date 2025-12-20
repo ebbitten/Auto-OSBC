@@ -8,7 +8,7 @@ from typing import Callable, Union
 
 import psutil
 
-from src.platform import launch_detached_process
+from src.platform_utils import launch_detached_process
 
 # Path to the folder containing the RuneLite settings files.
 RL_SETTINGS_FOLDER_PATH: Path = Path(__file__).parent.parent.joinpath("runelite_settings")

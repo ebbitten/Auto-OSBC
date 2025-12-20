@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from src.platform import get_platform
+from src.platform_utils import get_platform
 
 
 class TestInstallationScripts(unittest.TestCase):
@@ -79,7 +79,7 @@ class TestPlatformCompatibilityChecks(unittest.TestCase):
     
     def test_current_platform_detection(self):
         """Test that current platform can be detected"""
-        from src.platform import get_detailed_platform_info, is_platform_supported
+        from src.platform_utils import get_detailed_platform_info, is_platform_supported
         
         platform_type, details = get_detailed_platform_info()
         self.assertIsInstance(platform_type, str)
@@ -92,7 +92,7 @@ class TestPlatformCompatibilityChecks(unittest.TestCase):
     
     def test_python_version_validation(self):
         """Test Python version meets requirements"""
-        from src.platform import check_python_version
+        from src.platform_utils import check_python_version
         
         is_compatible, version = check_python_version()
         
@@ -127,7 +127,7 @@ class TestVirtualEnvironmentSetup(unittest.TestCase):
     
     def test_pip_path_generation(self):
         """Test pip executable path generation"""
-        from src.platform import get_pip_executable_path
+        from src.platform_utils import get_pip_executable_path
         
         test_venv = Path("test_venv")
         pip_path = get_pip_executable_path(test_venv)

@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock, Mock
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from src.platform import get_platform
+from src.platform_utils import get_platform
 
 
 class TestWindowDetection(unittest.TestCase):

@@ -60,7 +60,7 @@ python -m pytest tests/integration/ -v  # Integration tests
 ### WSL2 Testing
 ```bash
 # Check if running in WSL2
-python -c "from src.platform import detect_wsl2, get_wsl2_compatibility_warnings; print('WSL2:', detect_wsl2()); [print(w) for w in get_wsl2_compatibility_warnings()]"
+python -c "from src.platform_utils import detect_wsl2, get_wsl2_compatibility_warnings; print('WSL2:', detect_wsl2()); [print(w) for w in get_wsl2_compatibility_warnings()]"
 
 # Run tests with WSL2 awareness
 python test_runner_ubuntu.py  # Will detect and warn about WSL2
@@ -169,7 +169,7 @@ python -m pytest tests/ -v -s --tb=long
 ### Check Platform Info:
 ```bash
 # Detailed platform information
-python -c "from src.platform import show_platform_info; show_platform_info()"
+python -c "from src.platform_utils import show_platform_info; show_platform_info()"
 ```
 
 ### Common Issues:

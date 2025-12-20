@@ -177,7 +177,7 @@ class TestFrameworkImports(unittest.TestCase):
     def test_platform_utils_import(self):
         """Test platform utilities import"""
         try:
-            from src.platform import (
+            from src.platform_utils import (
                 get_platform,
                 get_detailed_platform_info,
                 is_platform_supported,
@@ -280,7 +280,7 @@ class TestImportPerformance(unittest.TestCase):
         start_time = time.time()
         
         try:
-            from src.platform import get_platform
+            from src.platform_utils import get_platform
             from utilities.geometry import Point, Rectangle
             import utilities.color as clr
             

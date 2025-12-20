@@ -29,11 +29,11 @@ class SettingsView(customtkinter.CTkFrame):
         img_size = 18
         self.img_edit = ImageTk.PhotoImage(
             Image.open(f"{PATH}/edit.png").resize((img_size, img_size)),
-            Image.ANTIALIAS,
+            Image.LANCZOS,
         )
         self.img_check = ImageTk.PhotoImage(
             Image.open(f"{PATH}/check.png").resize((img_size, img_size)),
-            Image.ANTIALIAS,
+            Image.LANCZOS,
         )
 
         # As each frame is created, it is added to this list

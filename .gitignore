@@ -102,6 +102,11 @@ ipython_config.py
 #   https://python-poetry.org/docs/basic-usage/#commit-your-poetrylock-file-to-version-control
 #poetry.lock
 
+# UV (Astral package manager)
+#   uv.lock contains resolved dependency versions for reproducibility
+#   Uncomment to track lockfile in version control (recommended for applications)
+uv.lock
+
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
 

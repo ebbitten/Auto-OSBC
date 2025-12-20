@@ -28,7 +28,18 @@
       "Bash(venv/Scripts/python.exe -m pytest tests/ -v --tb=no -q)",
       "Bash(mv:*)",
       "Bash(venv/Scripts/python.exe -m pytest:*)",
-      "Bash(venv/Scripts/python.exe:*)"
+      "Bash(venv/Scripts/python.exe:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(\"C:\\Users\\adamh\\VSCodeProjects\\Auto-OSBC\\venv\\Scripts\\python.exe\":*)",
+      "Bash(\"C:\\Users\\adamh\\VSCodeProjects\\Auto-OSBC\\venv\\Scripts\\pip.exe\" list)",
+      "Bash(cat:*)",
+      "Bash(install-windows.bat)",
+      "Bash(uv --version:*)",
+      "Bash(venv/Scripts/pip.exe list:*)",
+      "Bash(uv pip list:*)",
+      "Bash(find:*)",
+      "Bash(timeout 3 venv/Scripts/python.exe:*)"
     ],
     "deny": [],
     "ask": []

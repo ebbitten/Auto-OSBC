@@ -151,7 +151,7 @@ def test_platform_detection():
     print("=" * 60)
 
     try:
-        from src.platform import (
+        from src.platform_utils import (
             get_platform,
             get_detailed_platform_info,
             check_python_version,
