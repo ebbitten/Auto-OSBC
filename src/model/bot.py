@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Union
 
+import cv2
 import customtkinter
 import numpy as np
 import pyautogui as pag
@@ -626,3 +627,80 @@ class Bot(ABC):
         except Exception as e:
             self.log_msg(f"Error using banker's note: {e}")
             return False
+
+    # ===== Visual Detection Methods (Pure CV - No API Dependencies) =====
+
+    def is_inventory_full_visual(self) -> bool:
+        """
+        Check if inventory is full by counting filled slots visually.
+        Returns: True if all 28 slots are filled, False otherwise.
+        """
+        filled_slots = 0
+        for slot in self.win.inventory_slots:
+            slot_img = slot.screenshot()
+            if not self._is_slot_empty(slot_img):
+                filled_slots += 1
+        return filled_slots >= 28
+
+    def _is_slot_empty(self, slot_img: np.ndarray) -> bool:
+        """
+        Check if an inventory slot image is empty.
+        Args:
+            slot_img: Screenshot of an inventory slot
+        Returns: True if slot is empty, False if it contains an item
+        """
+        # Empty slots have consistent gray background with low color variance
+        # Slots with items have higher variance due to item textures/colors
+        gray = cv2.cvtColor(slot_img, cv2.COLOR_BGR2GRAY)
+        variance = np.var(gray)
+        return variance < 50  # Threshold for empty slot detection
+
+    def count_inventory_items_visual(self) -> int:
+        """
+        Count the number of items in inventory visually.
+        Returns: Number of filled inventory slots (0-28)
+        """
+        count = 0
+        for slot in self.win.inventory_slots:
+            slot_img = slot.screenshot()
+            if not self._is_slot_empty(slot_img):
+                count += 1
+        return count
+
+    def is_player_idle_visual(self) -> bool:
+        """
+        Check if player is idle by detecting action text above player.
+        Uses OCR to read the action text area.
+        Returns: True if player is idle (no action text), False otherwise
+
+        Note: This method assumes the window has an 'action_text_area' attribute.
+        If not available, it returns True (assumes idle).
+        """
+        # Check if action text area is defined in the window
+        if not hasattr(self.win, 'action_text_area'):
+            # No action text area defined, assume idle
+            return True
+
+        # Extract text from action area
+        action_text = ocr.extract_text(
+            self.win.action_text_area,
+            ocr.PLAIN_11,
+            [clr.WHITE, clr.YELLOW]
+        )
+
+        # Player is idle if no action text is present
+        return action_text.strip() == ""
+
+    def find_item_in_inventory_visual(self, item_template_path: str, confidence: float = 0.8) -> List[int]:
+        """
+        Find item in inventory using template matching.
+        Args:
+            item_template_path: Path to the item template image
+            confidence: Matching confidence threshold (0.0-1.0)
+        Returns: List of slot indices (0-27) where the item was found
+        """
+        found_slots = []
+        for i, slot in enumerate(self.win.inventory_slots):
+            if imsearch.search_img_in_rect(item_template_path, slot, confidence=confidence):
+                found_slots.append(i)
+        return found_slots

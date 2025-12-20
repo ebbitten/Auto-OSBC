@@ -1,3 +1,7 @@
-"""API utilities package."""
-from .events_server import start_server_thread
-from .events_client import EventsAPIClient
+"""API utilities package.
+
+Note: All HTTP-based game state APIs have been removed.
+Bots now use pure visual detection for reliability.
+"""
+
+__all__ = []

@@ -2,13 +2,10 @@ import shutil
 import time
 from pathlib import Path
 
-import utilities.api.item_ids as item_ids
 import utilities.color as clr
 import utilities.game_launcher as launcher
 from model.bot import BotStatus
 from model.osrs.osrs_bot import OSRSBot
-from utilities.api.morg_http_client import MorgHTTPSocket
-from utilities.api.status_socket import StatusSocket
 
 
 class OSRSCombat(OSRSBot, launcher.Launchable):
@@ -84,10 +81,6 @@ class OSRSCombat(OSRSBot, launcher.Launchable):
     def main_loop(self):
         self.log_msg("WARNING: This script is for testing and may not be safe for personal use. Please modify it to suit your needs.")
 
-        # Setup API
-        api_morg = MorgHTTPSocket()
-        api_status = StatusSocket()
-
         self.toggle_auto_retaliate(True)
 
         self.log_msg("Selecting inventory...")
@@ -101,13 +94,13 @@ class OSRSCombat(OSRSBot, launcher.Launchable):
         end_time = self.running_time * 60
         while time.time() - start_time < end_time:
             # If inventory is full...
-            if api_status.get_is_inv_full():
+            if self.is_inventory_full_visual():
                 self.log_msg("Inventory is full. Idk what to do.")
                 self.set_status(BotStatus.STOPPED)
                 return
 
             # While not in combat
-            while not api_morg.get_is_in_combat():
+            while not self.is_in_combat():
                 # Find a target
                 target = self.get_nearest_tagged_NPC()
                 if target is None:
@@ -130,42 +123,49 @@ class OSRSCombat(OSRSBot, launcher.Launchable):
                 time.sleep(0.5)
 
             # While in combat
-            while api_morg.get_is_in_combat():
+            while self.is_in_combat():
                 # Check to eat food
                 if self.get_hp() < self.hp_threshold:
-                    self.__eat(api_status)
+                    self.__eat()
                 time.sleep(1)
 
             # Loot all highlighted items on the ground
             if self.loot_items:
-                self.__loot(api_status)
+                self.__loot()
 
             self.update_progress((time.time() - start_time) / end_time)
 
         self.update_progress(1)
         self.__logout("Finished.")
 
-    def __eat(self, api: StatusSocket):
+    def __eat(self):
         self.log_msg("HP is low.")
-        food_slots = api.get_inv_item_indices(item_ids.all_food)
-        if len(food_slots) == 0:
+        # Find food in first row (assume food is kept in first slots)
+        food_slot = None
+        for i in range(4):  # Check first row for non-empty slots
+            slot_img = self.win.inventory_slots[i].screenshot()
+            if not self._is_slot_empty(slot_img):
+                food_slot = i
+                break
+
+        if food_slot is None:
             self.log_msg("No food found. Pls tell me what to do...")
             self.set_status(BotStatus.STOPPED)
             return
         self.log_msg("Eating food...")
-        self.mouse.move_to(self.win.inventory_slots[food_slots[0]].random_point())
+        self.mouse.move_to(self.win.inventory_slots[food_slot].random_point())
         self.mouse.click()
 
-    def __loot(self, api: StatusSocket):
+    def __loot(self):
         """Picks up loot while there is loot on the ground"""
         while self.pick_up_loot(self.loot_items):
-            if api.get_is_inv_full():
+            if self.is_inventory_full_visual():
                 self.__logout("Inventory full. Cannot loot.")
                 return
-            curr_inv = len(api.get_inv())
+            curr_inv = self.count_inventory_items_visual()
             self.log_msg("Picking up loot...")
             for _ in range(5):  # give the bot 5 seconds to pick up the loot
-                if len(api.get_inv()) != curr_inv:
+                if self.count_inventory_items_visual() != curr_inv:
                     self.log_msg("Loot picked up.")
                     time.sleep(1)
                     break

@@ -19,10 +19,6 @@ from utilities.game_launcher import Launchable
 from view import *
 from view.fonts.fonts import *
 
-# Import the EventsAPI server and client
-from utilities.api.events_server import start_server_thread
-from utilities.api.events_client import EventsAPIClient
-
 customtkinter.set_appearance_mode("Dark")  # Modes: "System" (standard), "Dark", "Light"
 customtkinter.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 

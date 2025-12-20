@@ -2,11 +2,9 @@ import time
 
 import pyautogui as pag
 
-import utilities.api.item_ids as ids
 import utilities.color as clr
 from model.bot import BotStatus
 from model.near_reality.nr_bot import NRBot
-from utilities.api.status_socket import StatusSocket
 from utilities.geometry import Point, RuneLiteObject
 
 
@@ -34,9 +32,6 @@ class NRFishing(NRBot):
         self.options_set = True
 
     def main_loop(self):  # sourcery skip: low-code-quality, use-named-expression
-        # API setup
-        api = StatusSocket()
-
         self.log_msg("Selecting inventory...")
         self.mouse.move_to(self.win.cp_tabs[3].random_point())
         self.mouse.click()
@@ -49,10 +44,10 @@ class NRFishing(NRBot):
         end_time = self.running_time * 60
         while time.time() - start_time < end_time:
             # Check to drop inventory
-            if api.get_is_inv_full():
-                raw_fish = api.get_inv_item_indices(ids.raw_fish)
-                self.drop(slots=raw_fish)
-                fished += len(raw_fish)
+            if self.is_inventory_full_visual():
+                # Drop all fish (fishing rod is typically equipped)
+                self.drop_all()
+                fished += 28
                 self.log_msg(f"Fishes fished: ~{fished}")
                 time.sleep(2)
 

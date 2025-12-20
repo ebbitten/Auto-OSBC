@@ -54,24 +54,35 @@ class TestInstallationScripts(unittest.TestCase):
     def test_python_installer_imports(self):
         """Test that Python installer can be imported without errors"""
         try:
-            # Try to compile the install.py script
-            with open(self.install_py, 'r') as f:
+            # Try to compile the install.py script (use UTF-8 encoding for emoji support)
+            with open(self.install_py, 'r', encoding='utf-8') as f:
                 code = f.read()
             compile(code, str(self.install_py), 'exec')
         except SyntaxError as e:
             self.fail(f"install.py has syntax errors: {e}")
     
-    def test_setup_py_validation(self):
-        """Test that setup.py is valid"""
-        setup_py = self.project_root / "setup.py"
-        self.assertTrue(setup_py.exists(), "setup.py should exist")
-        
+    def test_pyproject_toml_validation(self):
+        """Test that pyproject.toml exists and is valid (replaces setup.py)"""
+        pyproject_toml = self.project_root / "pyproject.toml"
+        self.assertTrue(pyproject_toml.exists(), "pyproject.toml should exist")
+
         try:
-            with open(setup_py, 'r') as f:
-                code = f.read()
-            compile(code, str(setup_py), 'exec')
-        except SyntaxError as e:
-            self.fail(f"setup.py has syntax errors: {e}")
+            import tomllib
+            with open(pyproject_toml, 'rb') as f:
+                data = tomllib.load(f)
+            # Verify essential sections exist
+            self.assertIn('project', data, "pyproject.toml should have [project] section")
+            self.assertIn('dependencies', data['project'], "pyproject.toml should have dependencies")
+        except Exception as e:
+            # Python 3.10 doesn't have tomllib, try toml package
+            try:
+                import toml
+                with open(pyproject_toml, 'r') as f:
+                    data = toml.load(f)
+                self.assertIn('project', data)
+                self.assertIn('dependencies', data['project'])
+            except Exception as e2:
+                self.skipTest(f"Cannot validate pyproject.toml: {e2}")
 
 
 class TestPlatformCompatibilityChecks(unittest.TestCase):

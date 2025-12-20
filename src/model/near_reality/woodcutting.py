@@ -3,7 +3,6 @@ import time
 import utilities.color as clr
 from model.bot import BotStatus
 from model.near_reality.nr_bot import NRBot
-from utilities.api.status_socket import StatusSocket
 
 
 class OSNRWoodcutting(NRBot):
@@ -39,9 +38,6 @@ class OSNRWoodcutting(NRBot):
         self.options_set = True
 
     def main_loop(self):  # sourcery skip: low-code-quality
-        # Setup API
-        api = StatusSocket()
-
         self.log_msg("Selecting inventory...")
         self.mouse.move_to(self.win.cp_tabs[3].random_point())
         self.mouse.click()
@@ -53,8 +49,8 @@ class OSNRWoodcutting(NRBot):
         start_time = time.time()
         end_time = self.running_time * 60
         while time.time() - start_time < end_time:
-            # If inventory is full
-            if api.get_is_inv_full():
+            # If inventory is full (visual detection)
+            if self.is_inventory_full_visual():
                 self.drop_all(skip_slots=list(range(self.protect_slots)))
                 logs += 28 - self.protect_slots
                 self.log_msg(f"Logs cut: ~{logs}")

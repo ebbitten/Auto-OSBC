@@ -4,7 +4,6 @@ from typing import List
 import utilities.color as clr
 from model.bot import BotStatus
 from model.near_reality.nr_bot import NRBot
-from utilities.api.status_socket import StatusSocket
 from utilities.geometry import Rectangle, RuneLiteObject
 
 
@@ -40,8 +39,6 @@ class NRMining(NRBot):
 
     def main_loop(self):  # sourcery skip: low-code-quality
         # Setup
-        api = StatusSocket()
-
         self.log_msg("Selecting inventory...")
         self.mouse.move_to(self.win.cp_tabs[3].random_point())
         self.mouse.click()
@@ -54,7 +51,7 @@ class NRMining(NRBot):
         end_time = self.running_time * 60
         while time.time() - start_time < end_time:
             # Check to drop inventory
-            if api.get_is_inv_full():
+            if self.is_inventory_full_visual():
                 self.drop_all()
                 time.sleep(1)
                 continue
@@ -77,7 +74,7 @@ class NRMining(NRBot):
             self.mouse.move_to(rocks[0].random_point(), mouseSpeed="fastest")
             self.mouse.click()
 
-            while not api.get_is_player_idle():
+            while not self.is_player_idle_visual():
                 pass
 
             mined += 1

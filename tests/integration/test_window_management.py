@@ -50,16 +50,16 @@ class TestWindowDetection(unittest.TestCase):
             
             mock_get_windows.return_value = [mock_window]
             
-            # Try to initialize Window
+            # Try to initialize Window with required padding arguments
             try:
-                window = Window("RuneLite")
-                
+                window = Window("RuneLite", padding_top=23, padding_left=0)
+
                 # Verify the mock was called
                 mock_get_windows.assert_called_with("RuneLite")
-                
+
                 # Test basic properties if initialization succeeded
                 self.assertEqual(window.window_title, "RuneLite")
-                
+
             except Exception as e:
                 # Window initialization might fail due to other requirements
                 self.skipTest(f"Window initialization failed: {e}")
@@ -73,8 +73,10 @@ class TestWindowDetection(unittest.TestCase):
             from utilities.window import Window, WindowInitializationError
             
             # Try to initialize with non-existent window
+            # Window initialization doesn't fail until window property is accessed
             with self.assertRaises(WindowInitializationError):
-                Window("NonExistentWindow12345")
+                win = Window("NonExistentWindow12345", padding_top=23, padding_left=0)
+                _ = win.window  # Access window property to trigger error
                 
         except ImportError:
             self.skipTest("Window class not available")

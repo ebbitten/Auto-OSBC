@@ -1,11 +1,8 @@
 import time
 
-import utilities.api.item_ids as ids
 import utilities.color as clr
 import utilities.random_util as rd
 from model.osrs.osrs_bot import OSRSBot
-from utilities.api.morg_http_client import MorgHTTPSocket
-from utilities.api.status_socket import StatusSocket
 
 
 class OSRSTemplate(OSRSBot):
@@ -63,13 +60,12 @@ class OSRSTemplate(OSRSBot):
         Additional notes:
         - Make use of Bot/RuneLiteBot member functions. There are many functions to simplify various actions.
           Visit the Wiki for more.
-        - Using the available APIs is highly recommended. Some of all of the API tools may be unavailable for
-          select private servers. For usage, uncomment the `api_m` and/or `api_s` lines below, and use the `.`
-          operator to access their functions.
+        - Use visual detection methods for game state monitoring:
+          * self.is_inventory_full_visual() - Check if inventory is full
+          * self.count_inventory_items_visual() - Count items in inventory
+          * self.is_player_idle_visual() - Check if player is idle
+          * self.is_in_combat() - Check if player is in combat (visual detection)
         """
-        # Setup APIs
-        # api_m = MorgHTTPSocket()
-        # api_s = StatusSocket()
 
         # Main loop
         start_time = time.time()

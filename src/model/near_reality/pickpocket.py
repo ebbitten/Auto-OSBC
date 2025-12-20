@@ -4,12 +4,11 @@ from typing import List
 import pyautogui as pag
 import pytweening
 
-import utilities.api.item_ids as item_ids
 import utilities.color as clr
 import utilities.imagesearch as imsearch
+import utilities.ocr as ocr
 from model.bot import BotStatus
 from model.near_reality.nr_bot import NRBot
-from utilities.api.status_socket import StatusSocket
 from utilities.geometry import Point, RuneLiteObject
 
 
@@ -88,8 +87,6 @@ class NRPickpocket(NRBot):
 
     def main_loop(self):  # sourcery skip: low-code-quality, use-named-expression
         # Setup
-        api = StatusSocket()
-
         self.mouse.click_delay = False
 
         coin_pouch_path = imsearch.BOT_IMAGES.joinpath("items", "coin_pouch.png")
@@ -109,27 +106,27 @@ class NRPickpocket(NRBot):
         while time.time() - start_time < end_time:
             # Check if we should eat
             while self.get_hp() < 50:
-                food_indexes = api.get_inv_item_indices(item_ids.all_food)
-                if food_indexes:
+                # Assume food is in protected rows (first few slots)
+                # User should place food in protected slots
+                food_slot = None
+                for i in range(self.protect_rows * 4):  # Check protected rows for non-empty slots
+                    slot_img = self.win.inventory_slots[i].screenshot()
+                    if not self._is_slot_empty(slot_img):
+                        food_slot = i
+                        break
+
+                if food_slot is not None:
                     self.log_msg("Eating...")
-                    self.mouse.move_to(self.win.inventory_slots[food_indexes[0]].random_point())
+                    self.mouse.move_to(self.win.inventory_slots[food_slot].random_point())
                     self.mouse.click()
-                    if len(food_indexes) > 1:  # eat another if available
-                        time.sleep(1)
-                        self.mouse.move_to(self.win.inventory_slots[food_indexes[1]].random_point())
-                        self.mouse.click()
+                    time.sleep(1)
                 else:
                     self.__logout(f"Out of food. Bot ran for {(time.time() - start_time) / 60} minutes.")
 
             # Check if we should drop inventory
-            if self.should_drop_inv and api.get_is_inv_full():
-                skip_slots = api.get_inv_item_indices(item_ids.all_food)
-                # Always drop the last row
-                remove = range(24, 28)
-                for index in remove:
-                    if index in skip_slots:
-                        skip_slots.remove(index)
-                self.drop_all(skip_rows=self.protect_rows, skip_slots=skip_slots)
+            if self.should_drop_inv and self.is_inventory_full_visual():
+                # Drop all except protected rows (which contain food)
+                self.drop_all(skip_rows=self.protect_rows)
 
             # Steal from NPC
             npc_pos: RuneLiteObject = self.get_nearest_tag(clr.CYAN)
@@ -157,20 +154,28 @@ class NRPickpocket(NRBot):
                     self.__logout(f"No NPC found for {npc_search_fail_count} seconds. Bot ran for {(time.time() - start_time) / 60} minutes.")
 
             # Click coin pouch
-            stack_size = api.get_inv_item_stack_amount(item_ids.coin_pouches)
-            if self.should_click_coin_pouch and stack_size > 22:
-                self.log_msg("Clicking coin pouch...")
+            if self.should_click_coin_pouch:
                 pouch = imsearch.search_img_in_rect(image=coin_pouch_path, rect=self.win.control_panel)
                 if pouch:
-                    self.mouse.move_to(
-                        pouch.random_point(),
-                        mouseSpeed="fast",
-                        tween=pytweening.easeInOutQuad,
-                    )
-                    self.mouse.click(force_delay=True)
-                    time.sleep(0.1)
-                    self.mouse.click(force_delay=True)
-                    no_pouch_count = 0
+                    # Use OCR to read stack size from coin pouch
+                    pouch_img = pouch.screenshot()
+                    stack_text = ocr.extract_text(pouch_img, ocr.PLAIN_11, [clr.YELLOW, clr.WHITE])
+                    try:
+                        stack_size = int(stack_text.strip()) if stack_text.strip().isdigit() else 0
+                    except ValueError:
+                        stack_size = 0
+
+                    if stack_size > 22:
+                        self.log_msg("Clicking coin pouch...")
+                        self.mouse.move_to(
+                            pouch.random_point(),
+                            mouseSpeed="fast",
+                            tween=pytweening.easeInOutQuad,
+                        )
+                        self.mouse.click(force_delay=True)
+                        time.sleep(0.1)
+                        self.mouse.click(force_delay=True)
+                        no_pouch_count = 0
                 else:
                     no_pouch_count += 1
                     if no_pouch_count > 5:

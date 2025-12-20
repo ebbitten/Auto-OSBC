@@ -2,7 +2,6 @@ import time
 
 from model.bot import BotStatus
 from model.near_reality.nr_bot import NRBot
-from utilities.api.status_socket import StatusSocket
 from utilities.geometry import RuneLiteObject
 
 
@@ -35,8 +34,6 @@ class NRCombat(NRBot):
         self.options_set = True
 
     def main_loop(self):  # sourcery skip: low-code-quality
-        api = StatusSocket()
-
         # Client setup
         self.toggle_auto_retaliate(toggle_on=True)
 
@@ -47,11 +44,11 @@ class NRCombat(NRBot):
         end_time = self.running_time * 60
         while time.time() - start_time < end_time:
             # loot
-            if not api.get_is_inv_full() and self.pick_up_loot("Cowhide"):
-                inv_count = len(api.get_inv())
+            if not self.is_inventory_full_visual() and self.pick_up_loot("Cowhide"):
+                inv_count = self.count_inventory_items_visual()
                 self.log_msg("Looting...")
                 loot_timeout = 5  # wait up to 5 seconds to finish picking it up
-                while len(api.get_inv()) == inv_count and loot_timeout > 0:
+                while self.count_inventory_items_visual() == inv_count and loot_timeout > 0:
                     time.sleep(1)
                     loot_timeout -= 1
                 time.sleep(0.5)
