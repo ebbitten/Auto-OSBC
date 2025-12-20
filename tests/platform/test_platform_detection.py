@@ -10,9 +10,9 @@ from unittest.mock import patch, mock_open
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from utilities.platform_utils import (
-    get_platform, 
-    get_windows_version, 
+from src.platform import (
+    get_platform,
+    get_windows_version,
     get_ubuntu_version,
     get_detailed_platform_info,
     is_platform_supported,

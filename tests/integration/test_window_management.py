@@ -9,7 +9,7 @@ from unittest.mock import patch, MagicMock, Mock
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from utilities.platform_utils import get_platform
+from src.platform import get_platform
 
 
 class TestWindowDetection(unittest.TestCase):
@@ -199,31 +199,31 @@ class TestScreenshotCapture(unittest.TestCase):
         except Exception as e:
             self.skipTest(f"MSS functionality unavailable: {e}")
     
-    @patch('mss.mss')
-    def test_rectangle_screenshot_mock(self, mock_mss_class):
+    @patch('utilities.geometry.sct')
+    def test_rectangle_screenshot_mock(self, mock_sct):
         """Test Rectangle screenshot method with mock"""
         try:
             from utilities.geometry import Rectangle
             import numpy as np
-            
-            # Mock MSS
-            mock_sct = MagicMock()
+
+            # Create fake screenshot data (BGRA format from MSS)
+            fake_img_data = np.zeros((100, 100, 4), dtype=np.uint8)
+
+            # Create a mock screenshot object that numpy can convert
             mock_screenshot = MagicMock()
-            
-            # Create fake screenshot data
-            fake_img_data = np.zeros((100, 100, 4), dtype=np.uint8)  # BGRA format
-            mock_screenshot.__array__ = lambda self: fake_img_data
-            
+            mock_screenshot.__array__ = MagicMock(return_value=fake_img_data)
+
+            # Configure the mock to return our fake screenshot
             mock_sct.grab.return_value = mock_screenshot
-            mock_mss_class.return_value.__enter__.return_value = mock_sct
-            
+
             # Test Rectangle screenshot
             rect = Rectangle(10, 10, 100, 100)
             screenshot = rect.screenshot()
-            
+
             self.assertIsInstance(screenshot, np.ndarray)
+            self.assertEqual(screenshot.shape, (100, 100, 3))  # Should be BGR, not BGRA
             mock_sct.grab.assert_called_once()
-            
+
         except ImportError:
             self.skipTest("Geometry utilities not available")
 

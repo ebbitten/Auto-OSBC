@@ -20,7 +20,9 @@ class TestCoreDependencies(unittest.TestCase):
             # Test basic functionality
             arr = np.array([1, 2, 3])
             self.assertEqual(len(arr), 3)
-            self.assertEqual(arr.dtype, np.int32 if sys.platform == "win32" else np.int64)
+            # NumPy 2.x uses int64 by default, NumPy 1.x used platform-specific defaults
+            # Accept both int32 and int64 as valid integer types
+            self.assertIn(arr.dtype, [np.int32, np.int64, np.dtype('int32'), np.dtype('int64')])
         except ImportError as e:
             self.skipTest(f"numpy not available: {e}")
     
@@ -175,8 +177,8 @@ class TestFrameworkImports(unittest.TestCase):
     def test_platform_utils_import(self):
         """Test platform utilities import"""
         try:
-            from utilities.platform_utils import (
-                get_platform, 
+            from src.platform import (
+                get_platform,
                 get_detailed_platform_info,
                 is_platform_supported,
                 check_python_version
@@ -278,7 +280,7 @@ class TestImportPerformance(unittest.TestCase):
         start_time = time.time()
         
         try:
-            from utilities.platform_utils import get_platform
+            from src.platform import get_platform
             from utilities.geometry import Point, Rectangle
             import utilities.color as clr
             

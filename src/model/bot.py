@@ -2,8 +2,6 @@
 A Bot is a base class for bot script models. It is abstract and cannot be instantiated. Many of the methods in this base class are
 pre-implemented and can be used by subclasses, or called by the controller. Code in this class should not be modified.
 """
-import ctypes
-import platform
 import re
 import threading
 import time
@@ -26,7 +24,7 @@ import utilities.random_util as rd
 from utilities.geometry import Point, Rectangle
 from utilities.mouse import Mouse
 from utilities.options_builder import OptionsBuilder
-from utilities.platform_utils import get_platform
+from src.platform import terminate_thread
 from utilities.window import Window, WindowInitializationError
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -55,24 +53,7 @@ class BotThread(threading.Thread):
     def stop(self):
         """Raises SystemExit exception in the thread. This can be called from the main thread followed by join()."""
         thread_id = self.__get_id()
-        current_platform = get_platform()
-        
-        try:
-            if current_platform == "windows":
-                res = ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, ctypes.py_object(SystemExit))
-                if res > 1:
-                    ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 0)
-                    print("Exception raise failure")
-            elif current_platform in ["linux", "darwin"]:
-                # Linux and macOS use c_long for thread ID
-                res = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(thread_id), ctypes.py_object(SystemExit))
-                if res > 1:
-                    ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(thread_id), 0)
-                    print("Exception raise failure")
-            else:
-                print(f"Warning: Thread termination not implemented for platform: {current_platform}")
-        except Exception as e:
-            print(f"Error during thread termination: {e}")
+        terminate_thread(thread_id)
 
 
 class BotStatus(Enum):

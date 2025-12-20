@@ -21,7 +21,14 @@
       "Bash(sudo apt:*)",
       "Bash(sudo apt install:*)",
       "WebFetch(domain:docs.claude.com)",
-      "WebFetch(domain:code.claude.com)"
+      "WebFetch(domain:code.claude.com)",
+      "Bash(venv/Scripts/python.exe -m mypy:*)",
+      "Bash(venv/Scripts/python.exe -m pytest tests/ -v --tb=short)",
+      "Bash(venv/Scripts/python.exe scripts/validate_installation.py)",
+      "Bash(venv/Scripts/python.exe -m pytest tests/ -v --tb=no -q)",
+      "Bash(mv:*)",
+      "Bash(venv/Scripts/python.exe -m pytest:*)",
+      "Bash(venv/Scripts/python.exe:*)"
     ],
     "deny": [],
     "ask": []

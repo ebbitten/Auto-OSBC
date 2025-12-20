@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from utilities.platform_utils import get_platform
+from src.platform import get_platform
 
 
 class TestPyWinCtlCompatibility(unittest.TestCase):

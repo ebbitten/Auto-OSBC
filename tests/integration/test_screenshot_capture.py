@@ -11,7 +11,7 @@ from unittest.mock import patch, MagicMock
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from utilities.platform_utils import get_platform
+from src.platform import get_platform
 
 
 class TestMSSScreenshotCapture(unittest.TestCase):
@@ -121,34 +121,34 @@ class TestMSSScreenshotCapture(unittest.TestCase):
 class TestGeometryScreenshots(unittest.TestCase):
     """Test screenshot functionality in geometry utilities"""
     
-    @patch('mss.mss')
-    def test_rectangle_screenshot_method(self, mock_mss_class):
+    @patch('utilities.geometry.sct')
+    def test_rectangle_screenshot_method(self, mock_sct):
         """Test Rectangle.screenshot() method"""
         try:
             from utilities.geometry import Rectangle
-            
-            # Mock MSS functionality
-            mock_sct = MagicMock()
-            mock_screenshot = MagicMock()
-            
-            # Create fake image data
+
+            # Create fake image data (BGRA format from MSS)
             fake_img = np.zeros((100, 100, 4), dtype=np.uint8)
-            mock_screenshot.__array__ = lambda self: fake_img
-            
+
+            # Create a mock screenshot object that numpy can convert
+            mock_screenshot = MagicMock()
+            mock_screenshot.__array__ = MagicMock(return_value=fake_img)
+
+            # Configure the mock to return our fake screenshot
             mock_sct.grab.return_value = mock_screenshot
-            mock_mss_class.return_value.__enter__.return_value = mock_sct
-            
+
             # Test Rectangle screenshot
             rect = Rectangle(10, 10, 100, 100)
             result = rect.screenshot()
-            
+
             # Verify MSS was called with correct parameters
             expected_monitor = {'left': 10, 'top': 10, 'width': 100, 'height': 100}
             mock_sct.grab.assert_called_once_with(expected_monitor)
-            
-            # Verify result
+
+            # Verify result is correct shape (should be BGR, not BGRA - alpha channel removed)
             self.assertIsInstance(result, np.ndarray)
-            
+            self.assertEqual(result.shape, (100, 100, 3))
+
         except ImportError:
             self.skipTest("Geometry utilities not available")
     
