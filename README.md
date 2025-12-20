@@ -45,7 +45,7 @@ OS Bot COLOR (OSBC) is a desktop client for controlling and monitoring automatio
 ## Manual Installation
 If automated installation fails:
 
-1. **Install Python 3.10+** from [python.org](https://www.python.org/downloads/)
+1. **Install Python 3.10-3.13** from [python.org](https://www.python.org/downloads/) (Python 3.10 recommended for best compatibility)
 2. **Create virtual environment**:
    ```bash
    python -m venv venv
@@ -193,7 +193,7 @@ See the [Wiki](https://github.com/kelltom/OSRS-Bot-COLOR/wiki) for tutorials, an
 ## User Interface
 OSBC offers a clean interface for configuring, running, and monitoring your Python bots. For developers, this means that all you need to do is write a bot's logic loop, and *the UI is already built for you*.
 
-![intro_demo](documentation/media/intro_demo.gif)
+![intro_demo](docs/media/intro_demo.gif)
 
 ### Script Log
 The Script Log provides a clean and simple way to track your bot's progress. No more command line clutter!
@@ -240,60 +240,3 @@ We've ditched machine learned OCR in favor of a much faster and more reliable cu
 
 
 
-# OS Bot COLOR
-
-## Installation
-
-1. Clone the repository:
-   ```
-   git clone https://github.com/your-username/OS-Bot-COLOR.git
-   cd OS-Bot-COLOR
-   ```
-
-2. Create and activate a virtual environment:
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-   ```
-
-3. Install the project and its dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-
-4. Run the application:
-   ```
-   python src/OSBY.py
-   ```
-
-## Development
-
-For development, you may want to install the project in editable mode:
-```
-pip install -e .
-```
-
-This allows changes to the source code to be immediately reflected in the installed package.
-
-## Code Modification Guidelines
-
-When modifying or adding code:
-
-1. Use existing utilities:
-   - Random operations: `rd.random_int()`, `rd.random_chance()`, etc.
-   - Mouse movements: `self.mouse.move_to()`, `self.mouse.click()`
-   - Geometry: `Point`, `Rectangle` from `utilities.geometry`
-   - Color detection: `utilities.color as clr`
-   - Image search: `utilities.imagesearch as imsearch`
-   - OCR: `utilities.ocr as ocr`
-
-2. Follow established patterns:
-   - Use `self.log_msg()` for user feedback
-   - Use consistent timing patterns
-   - Follow existing error handling approaches
-   - Use existing mouse movement patterns
-
-3. Check similar implementations:
-   - Look for similar functionality in other bot classes
-   - Maintain consistency with existing code
-   - Reuse existing methods where possible

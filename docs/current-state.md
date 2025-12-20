@@ -12,7 +12,7 @@ Game Client Window → Screenshot Capture → Visual Detection → Decision Logi
    [RuneLite]        [Window.screenshot()]  [Color/OCR]   [Bot Logic]   [Mouse/Click]
         ↑                    ↑                ↑               ↑              ↑
    Game State ←── API Polling ←── Game Events ←── State Check ←── Validation
-   [EventsAPI]      [HTTP Client]      [Plugin Data]    [Idle Check]    [Safety]
+   [StatusSocket]   [HTTP Client]      [Plugin Data]    [Idle Check]    [Safety]
 ```
 
 ### Detailed Data Flow Steps
@@ -35,7 +35,7 @@ Raw Screenshot → Color Isolation → Object Detection → Validation
 ```
 Visual Data + API Data → State Assessment → Decision Making
      ↓           ↓            ↓              ↓
-[Detection] + [EventsAPI] → [game_state] → [next_action]
+[Detection] + [StatusSocket] → [game_state] → [next_action]
 ```
 
 **4. Action Execution**
@@ -61,7 +61,7 @@ Decision → Movement Planning → Safety Check → Execution → Validation
 5. **Sorting**: `distance_from_center()` prioritizes nearest objects
 
 **API Integration Chain**:
-1. **HTTP Polling**: `EventsAPI` or `MorgHTTPSocket` queries game state
+1. **HTTP Polling**: `StatusSocket` queries game state
 2. **Data Processing**: Parse inventory, player status, world data
 3. **State Caching**: Cache results to reduce API load
 4. **Safety Checks**: Validate game state before actions
@@ -198,22 +198,16 @@ Continuous Monitoring → Threat Detection → Safety Action → Recovery
 
 ### 5. Game State APIs
 
-#### EventsAPI (`utilities/api/events_client.py`)
-**Real-time Game Data**:
+#### StatusSocket (`utilities/api/status_socket.py`)
+**HTTP-based Game State Monitoring**:
 - Player stats (HP, prayer, run energy)
 - Animation and idle detection
 - Player position and world data
 - Inventory state monitoring
 - Combat detection
 - Skill levels and XP tracking
-
-#### MorgHTTPSocket (`utilities/api/morg_http_client.py`)
-**HTTP-based Game Interface**:
-- Inventory management
 - Equipment detection
-- Skill monitoring
 - XP gain tracking
-- Player position data
 
 ### 6. Automation Utilities
 
@@ -261,25 +255,53 @@ Continuous Monitoring → Threat Detection → Safety Action → Recovery
 
 ## Current Testing State
 
-### Existing Tests
-- `EventAPI_test.py`: Manual API testing script
-- `morg_http_client.py`: HTTP client test functions
-- No formal test framework or automated testing
+### Comprehensive Test Infrastructure
+The project has a comprehensive pytest-based testing framework:
+
+**Test Statistics**:
+- 88+ tests passing
+- 84% code coverage
+- Organized by functionality (platform, dependencies, integration, API)
+
+**Test Configuration** (in `pyproject.toml`):
+- pytest configuration (`[tool.pytest.ini_options]`)
+- Coverage settings (`[tool.coverage.run]`)
+- Test markers: slow, integration, unit
+
+**Test Structure**:
+```
+tests/
+├── api/           # API integration tests (StatusSocket)
+├── dependencies/  # Import dependency validation
+├── integration/   # Window management, screenshot capture
+├── platform/      # Platform detection (Windows/Ubuntu/WSL2)
+├── smoke/         # Installation validation tests
+├── specs/         # Bot specification tests
+└── tools/         # Testing utilities (visual regression)
+```
+
+**Type Checking**:
+- Strict mypy configuration in `pyproject.toml` (lines 128-183)
+- Type stubs for PyAutoGUI, Deprecated packages
+- Comprehensive type annotations throughout codebase
 
 ### Testing Challenges
 1. **Visual Testing**: Game state changes require screenshot comparison
 2. **Timing Dependencies**: Game interactions have variable timing
-3. **External Dependencies**: Requires running game client
+3. **External Dependencies**: Requires running game client for E2E tests
 4. **State Management**: Game state affects test outcomes
 
 ## Development Workflow
 
-### Current Process
-1. Create bot class inheriting from Bot/RuneLiteBot
-2. Implement required methods (main_loop, create_options, save_options)
-3. Test manually using GUI application
-4. Debug using print statements and screenshots
-5. Deploy by placing in appropriate model subdirectory
+### Current Process (TDD-Based)
+1. Write specification tests (see `tests/specs/`)
+2. Create unit tests for bot logic
+3. Implement bot class inheriting from Bot/RuneLiteBot
+4. Implement required methods (main_loop, create_options, save_options)
+5. Run comprehensive test suite: `pytest tests/ -v`
+6. Type check: `mypy src/`
+7. Integration testing with game client (limited)
+8. Deploy by placing in appropriate model subdirectory
 
 ### Areas for Improvement
 1. **Automated Testing**: No test framework for visual interactions

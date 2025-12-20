@@ -48,11 +48,11 @@ def test_color_isolation():
 **Implementation**:
 ```python
 # test_api_integration.py
-def test_events_api_inventory():
+def test_status_socket_inventory():
     # Mock the HTTP response
     mock_response = {"inventory": [{"id": 1355, "quantity": 1}]}
     with patch('requests.get', return_value=mock_response):
-        client = EventsAPIClient()
+        client = StatusSocket()
         inventory = client.get_inv()
         assert len(inventory) == 1
         assert inventory[0]["id"] == 1355
@@ -72,11 +72,13 @@ def test_events_api_inventory():
 **Implementation Approaches**:
 
 #### A. Screenshot Comparison Testing
+**Note**: The examples below reference a planned `tests/fixtures/` directory that is not yet implemented. These are design examples showing how visual tests should work.
+
 ```python
-# test_visual_detection.py
+# test_visual_detection.py (EXAMPLE - fixtures directory planned)
 def test_inventory_slot_detection():
     # Load reference screenshot
-    reference = cv2.imread("tests/fixtures/inventory_full.png")
+    reference = cv2.imread("tests/fixtures/inventory_full.png")  # Planned path
     
     # Test inventory detection
     bot = create_test_bot()
@@ -95,7 +97,7 @@ def test_inventory_slot_detection():
 ```python
 def test_npc_detection():
     # Load test image with tagged NPCs
-    test_image = cv2.imread("tests/fixtures/npcs_tagged.png")
+    test_image = cv2.imread("tests/fixtures/npcs_tagged.png")  # Planned path
     
     bot = create_test_bot()
     # Mock the screenshot method
@@ -111,7 +113,7 @@ def test_npc_detection():
 ```python
 def test_hp_ocr():
     # Load test image with HP text
-    hp_image = cv2.imread("tests/fixtures/hp_orb_99.png")
+    hp_image = cv2.imread("tests/fixtures/hp_orb_99.png")  # Planned path
     
     # Test OCR extraction
     hp_text = ocr.extract_text(hp_image, ocr.PLAIN_11, [clr.ORB_GREEN])
@@ -145,22 +147,26 @@ def test_mining_bot_basic_workflow():
 
 ## Visual Testing Framework Design
 
-### 1. Test Image Management
-**Structure**:
+### 1. Test Directory Structure
+**Actual Structure**:
 ```
 tests/
-├── fixtures/
-│   ├── screenshots/
-│   │   ├── inventory_full.png
-│   │   ├── inventory_empty.png
-│   │   └── game_view_mining.png
-│   ├── ui_elements/
-│   │   ├── hp_orb_99.png
-│   │   ├── prayer_orb_43.png
-│   │   └── minimap_north.png
-│   └── reference_images/
-│       ├── mining_rock_tagged.png
-│       └── bank_interface.png
+├── api/              # API integration tests (StatusSocket)
+├── dependencies/     # Import dependency validation tests
+├── integration/      # Integration tests (window, screenshot, bot initialization)
+├── platform/         # Platform detection tests (Windows, Ubuntu, WSL2)
+├── smoke/            # Installation validation and smoke tests
+├── specs/            # Bot specification tests
+└── tools/            # Testing utilities (visual_regression.py)
+```
+
+**Test Image Storage** (planned for future):
+```
+tests/
+└── fixtures/         # (Planned) Test images and reference data
+    ├── screenshots/  # Full game screenshots
+    ├── ui_elements/  # Individual UI element captures
+    └── reference_images/  # Visual regression references
 ```
 
 **Image Versioning**: 
@@ -279,24 +285,72 @@ class GameStateSimulator:
 - Long-running scenarios
 
 ### 2. Test Configuration
-```python
-# pytest.ini
-[tool:pytest]
-markers =
-    fast: marks tests as fast (< 1s)
-    medium: marks tests as medium (1-10s)
-    slow: marks tests as slow (> 10s)
-    requires_game_client: marks tests requiring game client
-    visual: marks tests that use visual detection
-    api: marks tests that use game APIs
+Configuration is in `pyproject.toml` (lines 185-206):
+```toml
+# pyproject.toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
 ```
 
-### 3. Continuous Integration
+**Note**: The marker list above is the current implementation. Additional markers (fast, medium, requires_game_client, visual, api) may be added as needed for more granular test categorization.
+
+### 3. Test Execution Commands
+
+**Run all tests**:
+```bash
+pytest tests/ -v
+```
+
+**Run specific test categories**:
+```bash
+# Platform detection tests
+pytest tests/platform/ -v
+
+# Dependency validation tests
+pytest tests/dependencies/ -v
+
+# Integration tests (window, screenshot)
+pytest tests/integration/ -v
+
+# API integration tests
+pytest tests/api/ -v
+
+# Smoke tests
+pytest tests/smoke/ -v
+```
+
+**Run tests by marker**:
+```bash
+# Skip slow tests
+pytest tests/ -m "not slow" -v
+
+# Run only integration tests
+pytest tests/ -m integration -v
+
+# Run only unit tests
+pytest tests/ -m unit -v
+```
+
+**Run with coverage**:
+```bash
+pytest tests/ -v --cov=src --cov-report=html
+```
+
+### 4. Continuous Integration
 **Test Stages**:
-1. **Fast Tests**: Run on every commit
-2. **Medium Tests**: Run on pull requests
-3. **Slow Tests**: Run nightly
-4. **Visual Regression**: Run on UI changes
+1. **Fast Tests**: Run on every commit (unit tests, dependency checks)
+2. **Integration Tests**: Run on pull requests (API, window management)
+3. **Slow Tests**: Run nightly (deselected with `-m "not slow"`)
+4. **Visual Regression**: Run on UI changes (tests/tools/visual_regression.py)
 
 ## Visual Testing Best Practices
 

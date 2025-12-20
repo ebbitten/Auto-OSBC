@@ -43,11 +43,8 @@ python -m venv venv-windows
 # Activate the virtual environment
 venv-windows\Scripts\activate
 
-# Install all dependencies
-pip install -r requirements.txt
-
-# Install additional testing dependencies
-pip install pytest mypy
+# Install all dependencies (includes dev/testing tools)
+pip install -e ".[dev]"
 ```
 
 ### 4. Verify Installation
@@ -130,7 +127,7 @@ Auto-OSBC/
 ├── venv-windows/           # Windows virtual environment
 ├── src/                    # Source code (shared)
 ├── tests/                  # Test suite (shared)
-├── requirements.txt        # Dependencies (shared)
+├── pyproject.toml          # Dependencies and project config (shared)
 ├── CLAUDE.md              # Development workflow
 ├── WINDOWS_SETUP.md       # This file
 └── ...

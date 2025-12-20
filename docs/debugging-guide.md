@@ -3,6 +3,23 @@
 ## Overview
 Debugging game automation requires specialized tools and techniques due to the visual, timing-dependent nature of bot interactions. This guide provides comprehensive debugging strategies for Auto-OSBC development.
 
+## ⚠️ Implementation Status
+
+**IMPORTANT**: This document describes the *aspirational architecture* for Auto-OSBC's debugging infrastructure. Many of the classes and utilities documented here (particularly `DebugCapture`, `DetectionDebugger`, and `PerformanceDebugger`) are **not yet implemented** and serve as design guidelines for future development.
+
+**Currently Implemented**:
+- Basic debug utilities in `src/utilities/debug.py`: `timer()`, `save_image()`, `get_test_window()`
+- Interactive debug console: `scripts/debug_console.py`
+- Visual regression testing: `tests/tools/visual_regression.py`
+
+**Planned/Not Yet Implemented**:
+- `DebugCapture` class (systematic screenshot collection)
+- `DetectionDebugger` class (visual detection analysis)
+- `PerformanceDebugger` class (comprehensive timing analysis)
+- Log analysis scripts (`scripts/analyze_logs.py`, `scripts/monitor_logs.py`)
+
+When these classes are documented below, treat them as *design specifications* rather than working code. For current debugging capabilities, see the "Currently Implemented" section above.
+
 ## Debug Infrastructure Setup
 
 ### 1. Debug Screenshots Directory
@@ -557,8 +574,11 @@ if __name__ == '__main__':
 ```
 
 ### 2. Log Analysis Tools
+
+**Note**: This script is planned but not yet implemented.
+
 ```python
-# scripts/analyze_logs.py
+# scripts/analyze_logs.py (PLANNED - NOT YET IMPLEMENTED)
 import re
 from collections import defaultdict, Counter
 
@@ -608,8 +628,11 @@ def analyze_debug_log(log_file: str):
 ```
 
 ### 3. Real-time Log Monitoring
+
+**Note**: This script is planned but not yet implemented.
+
 ```python
-# scripts/monitor_logs.py
+# scripts/monitor_logs.py (PLANNED - NOT YET IMPLEMENTED)
 import time
 import os
 
@@ -708,7 +731,7 @@ class VisualValidator:
 
 ### 2. Automated Visual Regression Testing
 ```python
-# scripts/visual_regression_test.py
+# tests/tools/visual_regression.py
 def run_visual_regression_tests():
     """Run automated visual regression tests"""
     
@@ -850,9 +873,9 @@ jobs:
         with:
           python-version: '3.10'
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -e ".[dev]"
       - name: Run visual regression tests
-        run: python scripts/visual_regression_test.py
+        run: python tests/tools/visual_regression.py
       - name: Upload debug artifacts
         uses: actions/upload-artifact@v2
         if: failure()

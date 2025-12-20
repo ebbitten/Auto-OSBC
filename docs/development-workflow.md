@@ -13,6 +13,27 @@ This document outlines the Test-Driven Development (TDD) process specifically ad
 - API testing tools
 
 **Setup Commands**:
+
+Use the automated installation scripts:
+
+```bash
+# Windows
+install-windows.bat
+
+# Ubuntu/Linux
+./install-ubuntu.sh
+
+# Cross-platform (Python)
+python install.py
+```
+
+These scripts automatically:
+- Detect/install Python 3.10
+- Install UV package manager (10-100x faster than pip)
+- Create virtual environment
+- Install all dependencies from `pyproject.toml`
+
+**Manual Installation** (if automated scripts fail):
 ```bash
 # Create and activate virtual environment
 python -m venv venv
@@ -20,11 +41,8 @@ source venv/bin/activate  # Linux/Mac
 # or
 venv\Scripts\activate  # Windows
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Install development dependencies
-pip install pytest pytest-mock pytest-cov opencv-python-headless
+# Install all dependencies (includes dev/testing tools)
+pip install -e ".[dev]"
 ```
 
 ### 2. Documentation Review
@@ -43,7 +61,7 @@ mypy src/
 pytest tests/ -v
 
 # Test game client connection
-python src/EventAPI_test.py
+pytest tests/ -v  # Run test suite
 ```
 
 ## TDD Workflow for Game Automation
@@ -73,7 +91,7 @@ Clear description of what the feature should accomplish.
 - **Screenshot fixtures**: Required test images
 
 ## API Integration
-- **Required endpoints**: EventsAPI/MorgHTTPSocket methods
+- **Required endpoints**: StatusSocket methods
 - **Game state dependencies**: Required game conditions
 - **Timing constraints**: Response time requirements
 
@@ -91,10 +109,15 @@ Clear description of what the feature should accomplish.
 #### Step 2: Test Data Preparation
 **Create Test Assets**:
 ```bash
-# Create test directories
-mkdir -p tests/fixtures/{feature-name}
-mkdir -p tests/fixtures/{feature-name}/screenshots
-mkdir -p tests/fixtures/{feature-name}/api_responses
+# Actual test directory structure:
+# tests/
+# ├── api/           # API integration tests
+# ├── dependencies/  # Import dependency tests
+# ├── integration/   # Integration tests (window, screenshot)
+# ├── platform/      # Platform detection tests
+# ├── smoke/         # Installation smoke tests
+# ├── specs/         # Bot specifications
+# └── tools/         # Testing utilities (visual_regression.py)
 ```
 
 **Capture Test Images**:
@@ -182,7 +205,7 @@ class TestYourBotIntegration:
             "health": "99/99"
         }
         
-        with patch('src.utilities.api.events_client.EventsAPIClient') as mock_client:
+        with patch('src.utilities.api.status_socket.StatusSocket') as mock_client:
             mock_client.return_value.get_inv.return_value = mock_api_response["inventory"]
             mock_client.return_value.get_is_player_idle.return_value = True
             

@@ -39,7 +39,12 @@
       "Bash(venv/Scripts/pip.exe list:*)",
       "Bash(uv pip list:*)",
       "Bash(find:*)",
-      "Bash(timeout 3 venv/Scripts/python.exe:*)"
+      "Bash(timeout 3 venv/Scripts/python.exe:*)",
+      "Bash(tree:*)",
+      "Bash(ls:*)",
+      "Bash(xargs -I {} sh -c 'echo \"\"\"\"Directory: {}\"\"\"\"; find \"\"\"\"{}\"\"\"\" -type f -name \"\"\"\"*.md\"\"\"\" | wc -l')",
+      "Bash(timeout 5 venv/Scripts/python.exe:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

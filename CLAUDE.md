@@ -1,8 +1,8 @@
 
 AI AGENT DEVELOPMENT ROADMAP (Auto-OSBC Game Automation)
 
-Project Context:  
-Auto-OSBC is a sophisticated game automation framework for RuneScape-like games using computer vision, OCR, HTTP APIs, and mouse automation. The framework provides Bot/RuneLiteBot base classes, Window management, EventsAPI/MorgHTTPSocket game state APIs, and comprehensive visual detection utilities. All development follows TDD principles adapted for visual game automation.
+Project Context:
+Auto-OSBC is a sophisticated game automation framework for RuneScape-like games using computer vision, OCR, and mouse automation. The framework provides Bot/RuneLiteBot base classes, Window management, and comprehensive visual detection utilities. All development follows TDD principles adapted for visual game automation.
 
 Required Reading:
 - `docs/current-state.md` - Complete system architecture and component overview
@@ -25,38 +25,41 @@ Required Reading:
 - Create `tests/specs/{bot-name}.spec.md` following the template in `docs/development-workflow.md`
 - Define bot inheritance pattern (Bot vs RuneLiteBot)
 - Specify visual detection requirements (colors, OCR, image templates)
-- Document API integration needs (EventsAPI vs MorgHTTPSocket)
 - Plan mouse interaction patterns and timing requirements
-- Include edge cases (full inventory, friends nearby, API failures)
+- Include edge cases (full inventory, friends nearby, detection failures)
 
 **Step 2: Test Creation (Red Phase)**
-Write failing tests in this order:
+Write failing tests following the actual test structure:
 ```python
-# 1. Unit tests (isolated components)
-tests/unit/test_{bot_name}_unit.py
+# 1. Specifications (test requirements)
+tests/specs/{bot_name}.spec.md
 
-# 2. Integration tests (API mocking)  
+# 2. Unit tests (isolated components)
+# Place in tests/ or create tests/unit/ if organizing by type
+
+# 3. Integration tests (window management, visual detection)
 tests/integration/test_{bot_name}_integration.py
 
-# 3. Visual tests (screenshot fixtures)
-tests/visual/test_{bot_name}_visual.py
+# 4. Platform-specific tests (if needed)
+tests/platform/test_{bot_name}_platform.py
 
-# 4. E2E tests (actual game client - limited)
-tests/e2e/test_{bot_name}_e2e.py
+# Note: Visual fixtures and E2E tests are planned for future implementation
+# Current test organization: tests/api/, tests/integration/, tests/platform/,
+# tests/dependencies/, tests/smoke/, tests/specs/, tests/tools/
 ```
 
 **Key Testing Patterns**:
-- Mock EventsAPI/MorgHTTPSocket responses for integration tests
-- Use `create_mock_bot_with_image()` for visual detection tests  
+- Use `create_mock_bot_with_image()` for visual detection tests
 - Test detection with `get_all_tagged_in_rect()` and color isolation
 - Validate OCR with `ocr.extract_text()` and different fonts
-- Test timing with `wait_til_gained_xp()` and animation detection
+- Test timing with animation detection and visual state changes
+- Test visual inventory detection methods
 
 **Step 3: Minimal Implementation (Green Phase)**
 - Create bot class inheriting from appropriate base (Bot/RuneLiteBot)
 - Implement required abstract methods: `main_loop()`, `create_options()`, `save_options()`
 - Use existing framework APIs: color detection, OCR, window management, mouse automation
-- Integrate game state monitoring via EventsAPI or MorgHTTPSocket
+- Use visual detection methods for game state monitoring (inventory, idle, combat)
 - Write minimal code to pass tests (resist over-engineering)
 
 **Bot Development Pattern**:
@@ -80,7 +83,7 @@ class YourBot(RuneLiteBot):
     def main_loop(self):
         # Core automation logic with:
         # - Visual detection (get_all_tagged_in_rect, color isolation)
-        # - Game state checking (API calls)
+        # - Game state checking (is_inventory_full_visual, is_player_idle_visual)
         # - Mouse automation (self.mouse.move_to, click)
         # - Progress tracking (update_progress)
         # - Error handling and logging
@@ -88,7 +91,7 @@ class YourBot(RuneLiteBot):
 
 **Step 4: Regression Testing**
 - Run complete test suite: `pytest tests/ -v`
-- Execute visual regression tests: `python scripts/visual_regression_test.py`
+- Execute visual regression tests: `python tests/tools/visual_regression.py`
 - Verify no existing functionality broken
 - Update reference images if game UI changed (with justification)
 
@@ -114,11 +117,12 @@ class YourBot(RuneLiteBot):
 - **Validation**: Always validate detection results (size, position, count)
 - **Fallbacks**: Implement alternative detection methods for reliability
 
-### API Integration Requirements:
-- **Game State**: Use EventsAPI for real-time data, MorgHTTPSocket for HTTP polling
-- **Inventory**: Check `get_is_inv_full()` before actions that generate items
-- **Player Status**: Monitor `get_is_player_idle()` for action completion
+### Visual Detection Requirements:
+- **Game State**: Use visual detection methods for all game state monitoring
+- **Inventory**: Check `is_inventory_full_visual()` before actions that generate items
+- **Player Status**: Monitor `is_player_idle_visual()` for action completion
 - **Safety**: Implement friend detection (`friends_nearby()`) for logout safety
+- **Item Counting**: Use `count_inventory_items_visual()` to track inventory changes
 
 ### Mouse Automation Standards:
 - **Movement**: Use human-like curves with `self.mouse.move_to(point, mouseSpeed="medium")`
@@ -150,8 +154,8 @@ python scripts/performance_benchmark.py
 - **Regression**: No degradation in existing visual detection
 
 ### Integration Requirements:
-- **API mocking**: All external API calls mocked in integration tests
-- **Error handling**: Graceful degradation on API failures
+- **Visual detection**: All game state detection uses visual methods
+- **Error handling**: Graceful degradation on detection failures
 - **Safety features**: Friend detection and logout mechanisms tested
 - **Progress tracking**: Accurate progress reporting throughout execution
 
@@ -166,7 +170,7 @@ python scripts/debug_console.py
 python scripts/manual_capture.py "description"
 
 # Visual regression testing
-python scripts/visual_regression_test.py
+python tests/tools/visual_regression.py
 
 # Performance profiling
 python scripts/performance_profiler.py
@@ -194,8 +198,8 @@ if tagged_objects:
     self.mouse.move_to(nearest.random_point())
     self.mouse.click()
 
-# Inventory management pattern  
-if self.api_client.get_is_inv_full():
+# Inventory management pattern
+if self.is_inventory_full_visual():
     self.drop_all(skip_slots=[0])  # Keep item in first slot
 
 # Safety pattern
@@ -210,26 +214,29 @@ self.update_progress((time.time() - start_time) / total_time)
 ## Testing Command Reference:
 
 ```bash
-# Fast development cycle
-pytest tests/unit/ tests/integration/ -v
+# Run all tests
+pytest tests/ -v
 
-# Visual testing
-pytest tests/visual/ -v --capture=no
+# Run specific test categories (actual structure)
+pytest tests/platform/ -v          # Platform detection tests
+pytest tests/dependencies/ -v      # Import dependency tests
+pytest tests/integration/ -v       # Integration tests (window, screenshot)
+pytest tests/api/ -v               # API integration tests
+pytest tests/smoke/ -v             # Installation smoke tests
 
-# Slow end-to-end tests  
-pytest tests/e2e/ -v -m "slow"
+# Run tests by marker
+pytest tests/ -m "not slow" -v     # Skip slow tests
+pytest tests/ -m integration -v    # Integration tests only
+pytest tests/ -m unit -v           # Unit tests only
 
-# Performance testing
-pytest tests/ -m "performance" -v
-
-# Full test suite
+# Full test suite with coverage
 pytest tests/ -v --cov=src --cov-report=html
 
 # Type checking
 mypy src/ --strict
 
 # Visual regression
-python scripts/visual_regression_test.py
+python tests/tools/visual_regression.py
 ```
 
 ## Forbidden Actions (STRICTLY ENFORCED):
