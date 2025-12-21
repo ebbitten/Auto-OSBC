@@ -226,7 +226,7 @@ Continuous Monitoring → Threat Detection → Safety Action → Recovery
 
 ### 7. Bot Implementations
 
-#### Example: NRMining (`model/near_reality/mining.py`)
+#### Example: OSRSMining (`model/osrs/mining/mining.py`)
 **Functionality**:
 - Rock detection via color tagging
 - Inventory management (drop when full)

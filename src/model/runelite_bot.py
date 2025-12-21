@@ -1,6 +1,6 @@
 """
 The RuneLiteBot class contains properties and functions that are common across all RuneLite-based clients. This class
-can be inherited by additional abstract classes representing all bots for a specific game (E.g., OSNRBot, AloraBot, etc.).
+can be inherited by additional abstract classes representing all bots for a specific game (E.g., OSRSBot, etc.).
 
 To determine Thresholds for finding contours: https://pinetools.com/threshold-image
 

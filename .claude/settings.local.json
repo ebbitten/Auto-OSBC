@@ -62,8 +62,7 @@
       "Bash(setup \")",
       "Bash(\"C:\\\\Users\\\\adamh\\\\VSCodeProjects\\\\Auto-OSBC\\\\venv\\\\Scripts\\\\python.exe\" -m pytest tests/ --tb=short -q)",
       "Bash(\"C:\\\\Users\\\\adamh\\\\VSCodeProjects\\\\Auto-OSBC\\\\venv\\\\Scripts\\\\python.exe\" -c \"from model.osrs import OSRSCombat, AgilityBot, FishingBot, OSRSMining, OSRSWoodcutter; print\\(''OSRS imports OK''\\)\")",
-      "Bash(\"C:\\\\Users\\\\adamh\\\\VSCodeProjects\\\\Auto-OSBC\\\\venv\\\\Scripts\\\\python.exe\":*)",
-      "Bash(\"C:\\\\Users\\\\adamh\\\\VSCodeProjects\\\\Auto-OSBC\\\\venv\\\\Scripts\\\\python.exe\" -c \"from model.zaros import ZarosBot, ZarosWoodcutter; print\\(''Zaros imports OK''\\)\")"
+      "Bash(\"C:\\\\Users\\\\adamh\\\\VSCodeProjects\\\\Auto-OSBC\\\\venv\\\\Scripts\\\\python.exe\":*)"
     ],
     "deny": [],
     "ask": []
