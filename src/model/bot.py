@@ -8,7 +8,7 @@ import time
 import warnings
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Union
+from typing import Dict, List, Union
 
 import cv2
 import customtkinter
@@ -704,3 +704,114 @@ class Bot(ABC):
             if imsearch.search_img_in_rect(item_template_path, slot, confidence=confidence):
                 found_slots.append(i)
         return found_slots
+
+    # ===== Session Management =====
+
+    def timed_session(self, duration_minutes: float) -> "BotSession":
+        """
+        Create a timed session context manager for the main loop.
+
+        Usage:
+            with self.timed_session(self.running_time) as session:
+                while session.running:
+                    # Bot logic here
+                    session.increment("items_collected")
+
+        Args:
+            duration_minutes: How long to run the session in minutes
+
+        Returns:
+            BotSession context manager
+        """
+        return BotSession(self, duration_minutes)
+
+
+class BotSession:
+    """Context manager for timed bot sessions.
+
+    Handles:
+    - Session timing and progress updates
+    - Counter tracking (items collected, etc.)
+    - Failed action tracking with configurable limits
+    """
+
+    def __init__(self, bot: Bot, duration_minutes: float):
+        self.bot = bot
+        self.duration_seconds = duration_minutes * 60
+        self.start_time: float = 0
+        self.counters: Dict[str, int] = {}
+        self.failure_counts: Dict[str, int] = {}
+        self.failure_limits: Dict[str, int] = {}
+
+    def __enter__(self) -> "BotSession":
+        self.start_time = time.time()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        self.bot.update_progress(1)
+        return False  # Don't suppress exceptions
+
+    @property
+    def running(self) -> bool:
+        """Check if session should continue running."""
+        if self.bot.status != BotStatus.RUNNING:
+            return False
+        elapsed = time.time() - self.start_time
+        if elapsed >= self.duration_seconds:
+            return False
+        # Update progress
+        self.bot.update_progress(elapsed / self.duration_seconds)
+        return True
+
+    @property
+    def elapsed_seconds(self) -> float:
+        """Get elapsed time in seconds."""
+        return time.time() - self.start_time
+
+    @property
+    def elapsed_minutes(self) -> float:
+        """Get elapsed time in minutes."""
+        return self.elapsed_seconds / 60
+
+    @property
+    def remaining_seconds(self) -> float:
+        """Get remaining time in seconds."""
+        return max(0, self.duration_seconds - self.elapsed_seconds)
+
+    def increment(self, counter_name: str, amount: int = 1) -> int:
+        """Increment a counter and return the new value."""
+        if counter_name not in self.counters:
+            self.counters[counter_name] = 0
+        self.counters[counter_name] += amount
+        return self.counters[counter_name]
+
+    def get_count(self, counter_name: str) -> int:
+        """Get the current value of a counter."""
+        return self.counters.get(counter_name, 0)
+
+    def track_failure(self, failure_type: str, limit: int = 5) -> bool:
+        """
+        Track a failure and check if limit exceeded.
+
+        Args:
+            failure_type: Name of the failure type (e.g., "rocks_not_found")
+            limit: Maximum failures before returning True
+
+        Returns:
+            True if failure limit exceeded, False otherwise
+        """
+        if failure_type not in self.failure_counts:
+            self.failure_counts[failure_type] = 0
+            self.failure_limits[failure_type] = limit
+        self.failure_counts[failure_type] += 1
+        return self.failure_counts[failure_type] > limit
+
+    def reset_failures(self, failure_type: str) -> None:
+        """Reset failure count for a specific type."""
+        self.failure_counts[failure_type] = 0
+
+    def log_stats(self) -> None:
+        """Log current session statistics."""
+        stats = ", ".join(f"{k}: {v}" for k, v in self.counters.items())
+        if stats:
+            self.bot.log_msg(f"Session stats - {stats}")

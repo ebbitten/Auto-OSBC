@@ -5,7 +5,7 @@ from model.bot import BotStatus
 from model.near_reality.nr_bot import NRBot
 
 
-class OSNRWoodcutting(NRBot):
+class NRWoodcutting(NRBot):
     def __init__(self):
         title = "Woodcutting"
         description = "This bot chops wood. Position your character near some trees, tag them, and press the play button."
