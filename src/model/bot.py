@@ -25,7 +25,7 @@ import utilities.random_util as rd
 from utilities.geometry import Point, Rectangle
 from utilities.mouse import Mouse
 from utilities.options_builder import OptionsBuilder
-from src.platform_utils import terminate_thread
+from platform_utils import terminate_thread
 from utilities.window import Window, WindowInitializationError
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -290,6 +290,53 @@ class Bot(ABC):
         # debug.save_image("minimap_friends.png", only_friends)
         mean = only_friends.mean(axis=(0, 1))
         return mean != 0.0
+
+    def login(
+        self,
+        username: str = None,
+        password: str = None,
+        wait_for_game_load: bool = True,
+    ) -> bool:
+        """
+        Attempt to log into the game.
+
+        Uses the LoginService to automate the login process with human-like
+        input via TypeIntent and KeyPressIntent.
+
+        Args:
+            username: Username (defaults to OSBC_USERNAME env var)
+            password: Password (defaults to OSBC_PASSWORD env var)
+            wait_for_game_load: Wait for game to fully load after login
+
+        Returns:
+            True if login successful, False otherwise
+        """
+        from model.login.login_service import LoginService
+
+        service = LoginService(self)
+        outcome = service.login(
+            username=username,
+            password=password,
+        )
+
+        if outcome.success:
+            self.log_msg("Successfully logged in.")
+            return True
+        else:
+            self.log_msg(f"Login failed: {outcome.message}")
+            return False
+
+    def is_on_login_screen(self) -> bool:
+        """
+        Check if the game is showing the login screen.
+
+        Returns:
+            True if on login screen, False otherwise
+        """
+        from model.login.login_screen import LoginScreenDetector
+
+        detector = LoginScreenDetector(self.win)
+        return detector.is_on_login_screen()
 
     def logout(self):  # sourcery skip: class-extract-method
         """

@@ -17,11 +17,14 @@ from .intents import (
     DropIntent,
     DropSlotsIntent,
     Intent,
+    KeyPressIntent,
+    LaunchIntent,
     LogMessageIntent,
     LogoutIntent,
     MoveIntent,
     SleepIntent,
     StopIntent,
+    TypeIntent,
     WaitIntent,
 )
 
@@ -75,6 +78,12 @@ class Executor:
             return self._execute_stop(intent)
         elif isinstance(intent, LogMessageIntent):
             return self._execute_log_message(intent)
+        elif isinstance(intent, TypeIntent):
+            return self._execute_type(intent)
+        elif isinstance(intent, KeyPressIntent):
+            return self._execute_keypress(intent)
+        elif isinstance(intent, LaunchIntent):
+            return self._execute_launch(intent)
         elif isinstance(intent, CompositeIntent):
             return self._execute_composite(intent)
         else:
@@ -84,16 +93,29 @@ class Executor:
             )
 
     def _execute_click(self, intent: ClickIntent) -> ActionOutcome:
-        """Execute a click intent."""
-        from utilities.geometry import Point
+        """Execute a click intent.
 
-        target = Point(*intent.point)
-        self.bot.mouse.move_to(target, mouseSpeed=intent.speed)
+        If bot is available, uses bot.mouse for human-like movement.
+        If bot is None, falls back to pyautogui for simple GUI clicks.
+        """
+        if self.bot is not None:
+            from utilities.geometry import Point
 
-        if intent.right_click:
-            self.bot.mouse.right_click()
+            target = Point(*intent.point)
+            self.bot.mouse.move_to(target, mouseSpeed=intent.speed)
+
+            if intent.right_click:
+                self.bot.mouse.right_click()
+            else:
+                self.bot.mouse.click()
         else:
-            self.bot.mouse.click()
+            # Fallback for GUI interactions without a bot
+            import pyautogui
+
+            if intent.right_click:
+                pyautogui.rightClick(intent.point[0], intent.point[1])
+            else:
+                pyautogui.click(intent.point[0], intent.point[1])
 
         return ActionOutcome.ok(
             f"Clicked at ({intent.point[0]}, {intent.point[1]})",
@@ -220,6 +242,50 @@ class Executor:
             message=intent.message,
         )
 
+    def _execute_type(self, intent: TypeIntent) -> ActionOutcome:
+        """Execute a type intent to enter text via keyboard.
+
+        Uses pyautogui.typewrite for character-by-character input.
+        Password text is masked in logs when mask_in_logs is True.
+        """
+        import pyautogui as pag
+
+        # Type the text
+        pag.typewrite(intent.text, interval=intent.interval)
+
+        # Prepare log message (mask if needed)
+        display_text = "****" if intent.mask_in_logs else intent.text
+        field_desc = f" in {intent.field_name}" if intent.field_name else ""
+
+        return ActionOutcome.ok(
+            f"Typed '{display_text}'{field_desc}",
+            field_name=intent.field_name,
+            masked=intent.mask_in_logs,
+            char_count=len(intent.text),
+        )
+
+    def _execute_keypress(self, intent: KeyPressIntent) -> ActionOutcome:
+        """Execute a key press intent.
+
+        Supports both tap (hold_duration=0) and hold patterns.
+        """
+        import pyautogui as pag
+
+        if intent.hold_duration > 0:
+            pag.keyDown(intent.key)
+            time.sleep(intent.hold_duration)
+            pag.keyUp(intent.key)
+            action = f"held for {intent.hold_duration}s"
+        else:
+            pag.press(intent.key)
+            action = "pressed"
+
+        return ActionOutcome.ok(
+            f"Key '{intent.key}' {action}",
+            key=intent.key,
+            hold_duration=intent.hold_duration,
+        )
+
     def _execute_composite(self, intent: CompositeIntent) -> ActionOutcome:
         """Execute a composite intent by running each sub-intent in order."""
         results = []
@@ -242,6 +308,51 @@ class Executor:
             count=len(intent.intents),
             results=results,
         )
+
+    def _execute_launch(self, intent: LaunchIntent) -> ActionOutcome:
+        """Execute a launch intent - runs process and confirms window appears.
+
+        Launches the specified command as a detached process and waits for
+        the expected window to appear within the timeout period.
+        """
+        import subprocess
+
+        try:
+            process = subprocess.Popen(
+                intent.command,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+            )
+        except Exception as e:
+            return ActionOutcome.fail(
+                f"Failed to launch process: {e}",
+                command=intent.command,
+                error=str(e),
+            )
+
+        # Wait for window confirmation
+        from model.actions.window import wait_for_window
+
+        result = wait_for_window(
+            intent.expected_window,
+            timeout=intent.timeout,
+            exact=intent.exact_match,
+        )
+
+        if result.success:
+            return ActionOutcome.ok(
+                f"Launched and confirmed: {intent.expected_window}",
+                pid=process.pid,
+                window_title=result.data.get("window_title"),
+                elapsed_seconds=result.data.get("elapsed_seconds"),
+            )
+        else:
+            return ActionOutcome.fail(
+                f"Process launched but window '{intent.expected_window}' not found",
+                pid=process.pid,
+                timeout_seconds=intent.timeout,
+            )
 
 
 class MockExecutor(Executor):
@@ -292,3 +403,15 @@ class MockExecutor(Executor):
     def get_drops(self) -> list:
         """Get all DropIntent objects that were executed."""
         return [i for i in self.executed_intents if isinstance(i, DropIntent)]
+
+    def get_types(self) -> list:
+        """Get all TypeIntent objects that were executed."""
+        return [i for i in self.executed_intents if isinstance(i, TypeIntent)]
+
+    def get_keypresses(self) -> list:
+        """Get all KeyPressIntent objects that were executed."""
+        return [i for i in self.executed_intents if isinstance(i, KeyPressIntent)]
+
+    def get_launches(self) -> list:
+        """Get all LaunchIntent objects that were executed."""
+        return [i for i in self.executed_intents if isinstance(i, LaunchIntent)]

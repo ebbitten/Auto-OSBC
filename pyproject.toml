@@ -43,6 +43,7 @@ dependencies = [
     "pytweening>=1.2.0",
     "psutil>=5.9.4",
     "simplejson>=3.17.6",
+    "python-dotenv>=1.0.0",
 
     # Development tools (move some to dev extras)
     "mypy>=1.13.0",
@@ -86,6 +87,9 @@ windows = [
 Homepage = "https://github.com/kelltom/Auto-OSBC"
 Repository = "https://github.com/kelltom/Auto-OSBC"
 Issues = "https://github.com/kelltom/Auto-OSBC/issues"
+
+[project.scripts]
+osbc = "cli:main"
 
 # ============================================================================
 # Tool Configurations

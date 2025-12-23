@@ -192,5 +192,12 @@ src/runelite_settings/profile_manager_paths.json
 # Photoshop files
 *.psd
 
-# Debug screensohts 
+# Debug screenshots
 debug_screenshots
+# Root-level debug images (prevent accidental commits)
+/*.png
+/*.jpg
+/*.gif
+
+# Recorder captures
+captures/

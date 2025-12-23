@@ -1,4 +1,4 @@
-@echo off
+    @echo off
 REM Auto-OSBC Installation Script for Windows 10/11 with UV Package Manager
 REM Usage: install-windows.bat
 REM This script will automatically install UV and set up Python 3.10 environment

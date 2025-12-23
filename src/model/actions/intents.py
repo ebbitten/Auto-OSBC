@@ -129,6 +129,53 @@ class LogMessageIntent:
 
 
 @dataclass
+class TypeIntent:
+    """Intent to type text via keyboard.
+
+    Attributes:
+        text: The text to type
+        interval: Delay between keystrokes in seconds
+        field_name: Optional description of which field is being typed into
+        mask_in_logs: Whether to mask the text in logs (for passwords)
+    """
+
+    text: str
+    interval: float = 0.05
+    field_name: str = ""
+    mask_in_logs: bool = False
+
+
+@dataclass
+class KeyPressIntent:
+    """Intent to press a keyboard key.
+
+    Attributes:
+        key: The key to press (e.g., "enter", "tab", "escape")
+        hold_duration: How long to hold the key in seconds (0 = tap)
+    """
+
+    key: str
+    hold_duration: float = 0.0
+
+
+@dataclass
+class LaunchIntent:
+    """Intent to launch a process and wait for its window.
+
+    Attributes:
+        command: Command to run (list of strings for subprocess)
+        expected_window: Window title pattern to confirm launch succeeded
+        timeout: Maximum time to wait for window to appear
+        exact_match: If True, require exact window title match
+    """
+
+    command: List[str]
+    expected_window: str
+    timeout: float = 30.0
+    exact_match: bool = False
+
+
+@dataclass
 class CompositeIntent:
     """Intent that combines multiple intents to be executed in sequence.
 
@@ -147,6 +194,9 @@ class CompositeIntent:
             LogoutIntent,
             StopIntent,
             LogMessageIntent,
+            TypeIntent,
+            KeyPressIntent,
+            LaunchIntent,
         ]
     ] = field(default_factory=list)
 
@@ -162,5 +212,8 @@ Intent = Union[
     LogoutIntent,
     StopIntent,
     LogMessageIntent,
+    TypeIntent,
+    KeyPressIntent,
+    LaunchIntent,
     CompositeIntent,
 ]
