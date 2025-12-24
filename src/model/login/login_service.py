@@ -24,7 +24,7 @@ from model.actions.intents import (
     TypeIntent,
     WaitIntent,
 )
-from model.login.login_screen import LoginScreenDetector, LoginState
+from model.login.login_screen import LoginScreenDetector, LoginScreenInfo, LoginState
 
 if TYPE_CHECKING:
     from model.bot import Bot
@@ -140,6 +140,15 @@ class LoginService:
                 "Not on login screen",
                 state="unknown",
             )
+
+        # Handle welcome screen - click "Existing User" first
+        state_info = self.detector.detect_state()
+        if state_info.state == LoginState.WELCOME_SCREEN:
+            result = self._click_existing_user(state_info)
+            if not result.success:
+                return result
+            # Re-detect state after clicking
+            time.sleep(1.0)
 
         # Attempt login with retries
         for attempt in range(max_attempts):
@@ -298,3 +307,36 @@ class LoginService:
             ActionOutcome from the executor
         """
         return self.executor.execute(sequence)
+
+    def _click_existing_user(self, state_info: LoginScreenInfo) -> ActionOutcome:
+        """Click the 'Existing User' button on the welcome screen.
+
+        Args:
+            state_info: LoginScreenInfo containing the button location
+
+        Returns:
+            ActionOutcome indicating success or failure
+        """
+        if not state_info.existing_user_button:
+            return ActionOutcome.fail(
+                "Existing User button not found",
+                state="welcome_screen",
+            )
+
+        self.bot.log_msg("Clicking 'Existing User' button")
+
+        # Build click intent
+        click_intent = ClickIntent(
+            point=state_info.existing_user_button.random_point(),
+            speed="medium",
+        )
+
+        # Execute click
+        result = self.executor.execute(click_intent)
+
+        if result.success:
+            return ActionOutcome.ok("Clicked Existing User button")
+        else:
+            return ActionOutcome.fail(
+                f"Failed to click Existing User button: {result.message}",
+            )

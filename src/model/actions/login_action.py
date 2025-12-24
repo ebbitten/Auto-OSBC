@@ -66,7 +66,10 @@ def perform_login(
     try:
         # Default padding for RuneLite: top=26 (title bar)
         win = Window(window_title, padding_top=26, padding_left=0)
-        win.initialize()
+        # Note: We don't call initialize() here since login screen doesn't have
+        # in-game UI elements (minimap, chat, control panel). The Window class
+        # still provides rectangle() and position() without initialization.
+        _ = win.rectangle()  # Verify window exists
     except Exception as e:
         return ActionOutcome.fail(
             f"Could not find window '{window_title}': {e}",

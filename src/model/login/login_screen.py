@@ -18,7 +18,8 @@ class LoginState(Enum):
     """Possible states of the login process."""
 
     UNKNOWN = auto()
-    LOGIN_SCREEN = auto()
+    WELCOME_SCREEN = auto()  # Initial screen with "New User" / "Existing User" buttons
+    LOGIN_SCREEN = auto()  # Username/password entry screen
     ENTERING_USERNAME = auto()
     ENTERING_PASSWORD = auto()
     CLICK_TO_PLAY = auto()
@@ -40,6 +41,7 @@ class LoginScreenInfo:
         password_field: Rectangle of the password input field (if found)
         login_button: Rectangle of the login button (if found)
         play_button: Rectangle of the "Click to Play" button (if found)
+        existing_user_button: Rectangle of the "Existing User" button (if found)
         error_message: Any error message displayed on screen
     """
 
@@ -48,6 +50,7 @@ class LoginScreenInfo:
     password_field: Optional["Rectangle"] = None
     login_button: Optional["Rectangle"] = None
     play_button: Optional["Rectangle"] = None
+    existing_user_button: Optional["Rectangle"] = None
     error_message: Optional[str] = None
 
 
@@ -82,12 +85,20 @@ class LoginScreenDetector:
         if self.is_logged_in():
             return LoginScreenInfo(state=LoginState.LOGGED_IN)
 
-        # Check if on login screen
-        if self.is_on_login_screen():
-            # Get field locations
-            username_field = self.get_username_field_location()
-            password_field = self.get_password_field_location()
-            login_button = self.get_login_button_location()
+        # Check for welcome screen (has "Existing User" button)
+        existing_user = self.get_existing_user_button_location()
+        if existing_user:
+            return LoginScreenInfo(
+                state=LoginState.WELCOME_SCREEN,
+                existing_user_button=existing_user,
+            )
+
+        # Check if on login screen (has username field)
+        username_field = self.get_username_field_location()
+        password_field = self.get_password_field_location()
+        login_button = self.get_login_button_location()
+
+        if username_field or login_button:
             error_message = self.get_error_message()
 
             # Determine specific state based on error message
@@ -121,13 +132,17 @@ class LoginScreenDetector:
     def is_on_login_screen(self) -> bool:
         """Check if currently on the login screen.
 
-        Uses template matching for the login button, with OCR fallback.
+        Uses template matching for login elements, with OCR fallback.
 
         Returns:
             True if on login screen, False otherwise
         """
-        # Try template matching first
+        # Try template matching for login button (username/password screen)
         if self._find_login_button_template() is not None:
+            return True
+
+        # Try template matching for welcome screen (initial screen)
+        if self._find_welcome_screen_template() is not None:
             return True
 
         # Fallback to OCR
@@ -181,6 +196,30 @@ class LoginScreenDetector:
         """
         return self._find_login_button_template()
 
+    def get_existing_user_button_location(self) -> Optional["Rectangle"]:
+        """Find the 'Existing User' button on the welcome screen.
+
+        Uses template matching to find the button.
+
+        Returns:
+            Rectangle of the button, or None if not found
+        """
+        try:
+            from utilities import imagesearch as imsearch
+
+            template_path = LOGIN_IMAGES_PATH / "existing_user_button.png"
+            if not template_path.exists():
+                return None
+
+            result = imsearch.search_img_in_rect(
+                str(template_path),
+                self.window.rectangle(),
+                confidence=0.8,
+            )
+            return result
+        except Exception:
+            return None
+
     def get_error_message(self) -> Optional[str]:
         """Extract any error message from the login screen.
 
@@ -211,15 +250,68 @@ class LoginScreenDetector:
         except Exception:
             return None
 
+    def _find_welcome_screen_template(self) -> Optional["Rectangle"]:
+        """Find welcome screen elements using template matching.
+
+        Looks for either the 'Existing User' button or 'Welcome to RuneScape' text.
+        These indicate we're on the initial login screen before entering credentials.
+        """
+        try:
+            from utilities import imagesearch as imsearch
+
+            client_rect = self.window.rectangle()
+
+            # Try to find "Existing User" button
+            existing_user_path = LOGIN_IMAGES_PATH / "existing_user_button.png"
+            if existing_user_path.exists():
+                result = imsearch.search_img_in_rect(
+                    str(existing_user_path),
+                    client_rect,
+                    confidence=0.8,
+                )
+                if result:
+                    return result
+
+            # Try to find "Welcome to RuneScape" text
+            welcome_path = LOGIN_IMAGES_PATH / "welcome_to_runescape.png"
+            if welcome_path.exists():
+                result = imsearch.search_img_in_rect(
+                    str(welcome_path),
+                    client_rect,
+                    confidence=0.8,
+                )
+                if result:
+                    return result
+
+            return None
+        except Exception:
+            return None
+
     def _detect_login_screen_ocr(self) -> bool:
-        """Detect login screen using OCR for 'Username:' text."""
+        """Detect login screen using OCR.
+
+        Looks for text that indicates we're on a login-related screen:
+        - "username" - login form with username field
+        - "existing user" - initial welcome screen
+        - "new user" - initial welcome screen
+        - "welcome to runescape" - initial welcome screen
+        """
         try:
             from utilities import ocr
-            from utilities.color import clr
+            import utilities.color as clr
 
             client_rect = self.window.rectangle()
             text = ocr.extract_text(client_rect, ocr.PLAIN_12, [clr.WHITE])
-            return "username" in text.lower()
+            text_lower = text.lower()
+
+            # Check for any login screen indicators
+            login_indicators = [
+                "username",
+                "existing user",
+                "new user",
+                "welcome to runescape",
+            ]
+            return any(indicator in text_lower for indicator in login_indicators)
         except Exception:
             return False
 
@@ -227,7 +319,7 @@ class LoginScreenDetector:
         """Find username input field by locating 'Username:' label."""
         try:
             from utilities import ocr
-            from utilities.color import clr
+            import utilities.color as clr
             from utilities.geometry import Rectangle
 
             client_rect = self.window.rectangle()
@@ -277,7 +369,7 @@ class LoginScreenDetector:
         """Extract error message text from login screen."""
         try:
             from utilities import ocr
-            from utilities.color import clr
+            import utilities.color as clr
 
             client_rect = self.window.rectangle()
 
