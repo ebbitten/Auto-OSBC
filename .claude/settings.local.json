@@ -137,7 +137,9 @@
       "Bash(\"C:/Users/adamh/VSCodeProjects/Auto-OSBC/venv/Scripts/python.exe\" scripts/recorder.py --from-session \"captures/2025-12-22_21-58-33\" --extract-template \"350,320,300,30,welcome_to_runescape\")",
       "Bash(\"C:/Users/adamh/VSCodeProjects/Auto-OSBC/venv/Scripts/python.exe\" scripts/:*)",
       "Bash(\"C:/Users/adamh/VSCodeProjects/Auto-OSBC/venv/Scripts/python.exe\" scripts/recorder.py --list-templates)",
-      "Bash(\"C:/Users/adamh/VSCodeProjects/Auto-OSBC/venv/Scripts/python.exe\" scripts/recorder.py --test-template src/images/bot/login/existing_user_button.png --window \"RuneLite\")"
+      "Bash(\"C:/Users/adamh/VSCodeProjects/Auto-OSBC/venv/Scripts/python.exe\" scripts/recorder.py --test-template src/images/bot/login/existing_user_button.png --window \"RuneLite\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
