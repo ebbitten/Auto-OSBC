@@ -23,7 +23,9 @@
       "Read(**)",
       "Bash(./venv/Scripts/pytest tests/unit/actions/test_window.py -v --tb=no -q)",
       "Bash(test:*)",
-      "Bash(./venv/Scripts/pytest tests/unit/ -v --tb=short -q)"
+      "Bash(./venv/Scripts/pytest tests/unit/ -v --tb=short -q)",
+      "Bash(..venvScriptspython cli.py go --timeout 120)",
+      "Bash(../venv/Scripts/python:*)"
     ],
     "deny": [],
     "ask": []

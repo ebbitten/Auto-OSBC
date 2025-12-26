@@ -5,15 +5,31 @@ Auto-OSBC Command Line Interface.
 A minimal CLI for human interaction with the bot framework.
 
 Commands:
+    osbc go              Launch + login (auto-detects state)
+    osbc go --skip-login Stop at login screen
     osbc start           Launch RuneLite + open bot GUI
     osbc start --headless  Launch RuneLite only (no GUI)
     osbc gui             Open bot selection GUI
     osbc login           Automate game login
-    osbc status          Check window status
+    osbc status          Check current system state
 """
 
 import argparse
 import sys
+
+
+def cmd_go(args):
+    """Unified launch + login command."""
+    from model.actions import go_action
+
+    result = go_action.go(
+        force_restart=args.force_restart,
+        skip_login=args.skip_login,
+        timeout=args.timeout,
+    )
+
+    print(result.message)
+    return 0 if result.success else 1
 
 
 def cmd_start(args):
@@ -65,13 +81,19 @@ def cmd_login(args):
 
 
 def cmd_status(args):
-    """Check OSBC and RuneLite window status."""
-    from model.actions import osbc
+    """Check current system state."""
+    from model.system_state import SystemStateDetector
 
-    result = osbc.check_windows_status()
-    print(result.message)
+    detector = SystemStateDetector()
+    state = detector.detect()
+    description = detector.get_state_description(state)
+
+    print(f"State: {state.name}")
+    print(f"  {description}")
 
     if args.verbose:
+        from model.actions import osbc
+        result = osbc.check_windows_status()
         print(f"  OSBC: {result.data.get('osbc_title', 'Not running')}")
         print(f"  RuneLite: {result.data.get('runelite_title', 'Not running')}")
 
@@ -99,6 +121,16 @@ Examples:
         dest="command",
         required=True,
     )
+
+    # --- go (primary command) ---
+    go_parser = subparsers.add_parser(
+        "go",
+        help="Launch and login (auto-detects state)",
+    )
+    go_parser.add_argument("--skip-login", action="store_true", help="Stop at login screen")
+    go_parser.add_argument("--force-restart", action="store_true", help="Close existing windows first")
+    go_parser.add_argument("--timeout", type=float, default=180.0, help="Overall timeout (default: 180)")
+    go_parser.set_defaults(func=cmd_go)
 
     # --- start ---
     start_parser = subparsers.add_parser(

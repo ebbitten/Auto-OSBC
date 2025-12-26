@@ -85,56 +85,55 @@ class LoginScreenDetector:
         if self.is_logged_in():
             return LoginScreenInfo(state=LoginState.LOGGED_IN)
 
-        # Check for login button FIRST - it's more specific than existing_user
-        # (existing_user template can false-match on similar brown buttons)
+        # Check for "Click to Play" button (post-login state)
+        play_button = self.get_click_to_play_button_location()
+        if play_button:
+            return LoginScreenInfo(
+                state=LoginState.CLICK_TO_PLAY,
+                play_button=play_button,
+            )
+
+        # Use UNIQUE identifiers to distinguish screens:
+        # - "New User" + "Existing User" buttons side by side = WELCOME_SCREEN
+        # - "Try again" button = INVALID_CREDENTIALS
+        # - "Login" button = LOGIN_SCREEN
+        #
+        # IMPORTANT: Check WELCOME first because it uses structural validation
+        # (both buttons at same Y position). Individual templates can have false
+        # positives on brown scroll textures.
+
+        # Check for WELCOME_SCREEN first using structural validation (most reliable)
+        if self._is_welcome_screen():
+            existing_user = self.get_existing_user_button_location()
+            return LoginScreenInfo(
+                state=LoginState.WELCOME_SCREEN,
+                existing_user_button=existing_user,
+            )
+
+        # Check for LOGIN_SCREEN first (has Login button)
+        # Must check before INVALID_CREDENTIALS because "Try again" template
+        # can match brown scroll texture on login screen
         login_button = self.get_login_button_location()
-        username_field = self.get_username_field_location()
-        password_field = self.get_password_field_location()
-
         if login_button:
-            # We found the login button - we're on the LOGIN_SCREEN
+            username_field = self.get_username_field_location()
+            password_field = self.get_password_field_location()
             error_message = self.get_error_message()
-
-            # Determine specific state based on error message
-            if error_message:
-                if "invalid" in error_message.lower():
-                    return LoginScreenInfo(
-                        state=LoginState.INVALID_CREDENTIALS,
-                        error_message=error_message,
-                    )
-                elif "error" in error_message.lower() or "connect" in error_message.lower():
-                    return LoginScreenInfo(
-                        state=LoginState.CONNECTION_ERROR,
-                        error_message=error_message,
-                    )
-                elif "locked" in error_message.lower() or "disabled" in error_message.lower():
-                    return LoginScreenInfo(
-                        state=LoginState.ACCOUNT_LOCKED,
-                        error_message=error_message,
-                    )
 
             return LoginScreenInfo(
                 state=LoginState.LOGIN_SCREEN,
                 username_field=username_field,
                 password_field=password_field,
                 login_button=login_button,
+                error_message=error_message,
             )
 
-        # Check for welcome screen (has "Existing User" button)
-        existing_user = self.get_existing_user_button_location()
-        if existing_user:
+        # Check for INVALID_CREDENTIALS screen (has "Try again" button but NO Login button)
+        # Only check after ruling out LOGIN screen
+        try_again_button = self.get_try_again_button_location()
+        if try_again_button:
             return LoginScreenInfo(
-                state=LoginState.WELCOME_SCREEN,
-                existing_user_button=existing_user,
-            )
-
-        # Fallback: Check for username field when login button not found
-        if username_field:
-            return LoginScreenInfo(
-                state=LoginState.LOGIN_SCREEN,
-                username_field=username_field,
-                password_field=password_field,
-                login_button=None,
+                state=LoginState.INVALID_CREDENTIALS,
+                error_message="Incorrect username or password",
             )
 
         # Unknown state
@@ -165,15 +164,82 @@ class LoginScreenDetector:
     def is_logged_in(self) -> bool:
         """Check if player is fully logged into the game.
 
-        Checks for the presence of game UI elements like inventory slots.
+        Checks for the presence of game UI elements. Tries multiple methods:
+        1. Check if window can be initialized (finds minimap, chat, control panel)
+        2. Check for minimap orbs in expected location
+        3. Check for inventory slots
 
         Returns:
             True if logged in with game UI visible, False otherwise
         """
         try:
+            # Try to initialize window - this finds game UI elements
+            # If it succeeds, we're logged in
+            self.window.initialize()
+            return True
+        except Exception:
+            pass
+
+        # Fallback: check for minimap orbs in the top-right corner
+        # These only appear when logged in
+        try:
+            if self._has_minimap_orbs():
+                return True
+        except Exception:
+            pass
+
+        # Fallback: check if inventory_slots was previously populated
+        try:
             inventory = self.window.inventory_slots
-            return inventory is not None and len(inventory) == 28
+            if inventory is not None and len(inventory) == 28:
+                return True
         except (AttributeError, Exception):
+            pass
+
+        return False
+
+    def _has_minimap_orbs(self) -> bool:
+        """Check if minimap orbs are visible (indicates logged-in state).
+
+        The orbs (HP, prayer, run energy, special) appear in the top-right
+        corner only when logged in.
+
+        Returns:
+            True if orbs are detected, False otherwise
+        """
+        try:
+            import mss
+            import numpy as np
+
+            win_rect = self.window.rectangle()
+
+            # Orbs are in the top-right area, roughly 150x150 from corner
+            orb_area = {
+                'left': win_rect.left + win_rect.width - 180,
+                'top': win_rect.top + 30,  # Skip title bar
+                'width': 150,
+                'height': 150,
+            }
+
+            with mss.mss() as sct:
+                img = np.array(sct.grab(orb_area))
+
+                # The orbs have distinctive orange/yellow colors (HP, run, spec)
+                # Check for presence of orange-ish pixels (BGR format)
+                # Orange is roughly B=0-100, G=100-200, R=200-255
+                orange_mask = (
+                    (img[:, :, 0] < 100) &  # Low blue
+                    (img[:, :, 1] > 80) & (img[:, :, 1] < 200) &  # Medium green
+                    (img[:, :, 2] > 150)  # High red
+                )
+
+                orange_count = np.sum(orange_mask)
+
+                # If we have a significant number of orange pixels, orbs are present
+                # Threshold of 200 catches the HP/run/spec orbs
+                return orange_count > 200
+
+        except Exception:
             return False
 
     def get_username_field_location(self) -> Optional["Rectangle"]:
@@ -207,6 +273,80 @@ class LoginScreenDetector:
         """
         return self._find_login_button_template()
 
+    def _is_login_screen(self) -> bool:
+        """Check if we're on the login screen by looking for 'Cancel' button.
+
+        The 'Cancel' button only exists on the login screen (not welcome screen),
+        making it a reliable indicator.
+
+        Returns:
+            True if on login screen, False otherwise
+        """
+        try:
+            from utilities import imagesearch as imsearch
+
+            template_path = LOGIN_IMAGES_PATH / "cancel_button.png"
+            if not template_path.exists():
+                return False
+
+            result = imsearch.search_img_in_rect(
+                str(template_path),
+                self.window.rectangle(),
+                confidence=0.8,
+            )
+            return result is not None
+        except Exception:
+            return False
+
+    def _is_welcome_screen(self) -> bool:
+        """Check if we're on the welcome screen.
+
+        The welcome screen has BOTH "New User" AND "Existing User" buttons
+        side by side. We require BOTH to be found to avoid false positives
+        from individual button templates matching the scroll texture.
+
+        Returns:
+            True if on welcome screen, False otherwise
+        """
+        try:
+            from utilities import imagesearch as imsearch
+
+            win_rect = self.window.rectangle()
+
+            # Check for Existing User button
+            existing_user_path = LOGIN_IMAGES_PATH / "existing_user_button.png"
+            if not existing_user_path.exists():
+                return False
+
+            existing_user = imsearch.search_img_in_rect(
+                str(existing_user_path),
+                win_rect,
+                confidence=0.8,
+            )
+
+            if not existing_user:
+                return False
+
+            # Also verify "New User" button is present (both must exist on welcome)
+            new_user_path = LOGIN_IMAGES_PATH / "new_user_button.png"
+            if new_user_path.exists():
+                new_user = imsearch.search_img_in_rect(
+                    str(new_user_path),
+                    win_rect,
+                    confidence=0.8,
+                )
+                # Both buttons must be found AND they should be at similar Y position
+                # (side by side on the welcome screen)
+                if new_user and existing_user:
+                    y_diff = abs(new_user.top - existing_user.top)
+                    # Buttons should be roughly on the same horizontal line (within 50px)
+                    if y_diff < 50:
+                        return True
+
+            return False
+        except Exception:
+            return False
+
     def get_existing_user_button_location(self) -> Optional["Rectangle"]:
         """Find the 'Existing User' button on the welcome screen.
 
@@ -219,6 +359,30 @@ class LoginScreenDetector:
             from utilities import imagesearch as imsearch
 
             template_path = LOGIN_IMAGES_PATH / "existing_user_button.png"
+            if not template_path.exists():
+                return None
+
+            return imsearch.search_img_in_rect(
+                str(template_path),
+                self.window.rectangle(),
+                confidence=0.8,
+            )
+        except Exception:
+            return None
+
+    def get_click_to_play_button_location(self) -> Optional["Rectangle"]:
+        """Find the 'Click here to Play' button after login.
+
+        Uses template matching to find the play button that appears
+        after successful credential entry.
+
+        Returns:
+            Rectangle of the button, or None if not found
+        """
+        try:
+            from utilities import imagesearch as imsearch
+
+            template_path = LOGIN_IMAGES_PATH / "click_to_play.png"
             if not template_path.exists():
                 return None
 
@@ -241,6 +405,38 @@ class LoginScreenDetector:
         """
         return self._extract_error_text()
 
+    def get_try_again_button_location(self) -> Optional["Rectangle"]:
+        """Find the 'Try again' button on the invalid credentials screen.
+
+        This button appears after entering wrong username/password.
+
+        Returns:
+            Rectangle of the button, or None if not found
+        """
+        try:
+            from utilities import imagesearch as imsearch
+
+            template_path = LOGIN_IMAGES_PATH / "try_again_button.png"
+            if not template_path.exists():
+                return None
+
+            result = imsearch.search_img_in_rect(
+                str(template_path),
+                self.window.rectangle(),
+                confidence=0.8,
+            )
+            return result
+        except Exception:
+            return None
+
+    def is_on_invalid_credentials_screen(self) -> bool:
+        """Check if we're on the invalid credentials error screen.
+
+        Returns:
+            True if the 'Try again' button is visible, False otherwise
+        """
+        return self.get_try_again_button_location() is not None
+
     # Private helper methods
 
     def _find_login_button_template(self) -> Optional["Rectangle"]:
@@ -252,12 +448,12 @@ class LoginScreenDetector:
             if not template_path.exists():
                 return None
 
-            result = imsearch.search_img_in_rect(
+            # Use higher confidence (0.9) to avoid false matches
+            return imsearch.search_img_in_rect(
                 str(template_path),
                 self.window.rectangle(),
-                confidence=0.8,
+                confidence=0.9,
             )
-            return result
         except Exception:
             return None
 

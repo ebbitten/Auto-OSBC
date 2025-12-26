@@ -154,6 +154,13 @@ class LoginService:
         for attempt in range(max_attempts):
             self.bot.log_msg(f"Login attempt {attempt + 1}/{max_attempts}")
 
+            # Focus the game window before entering credentials
+            try:
+                self.bot.win.focus()
+                time.sleep(0.3)  # Brief pause after focus
+            except Exception as e:
+                self.bot.log_msg(f"Warning: Could not focus window: {e}")
+
             # Check for login fields
             username_field = self.detector.get_username_field_location()
             password_field = self.detector.get_password_field_location()

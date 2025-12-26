@@ -294,12 +294,20 @@ class Executor:
             result = self.execute(sub_intent)
             results.append(result)
 
-            # Stop on failure
+            # Stop on failure or timeout
             if result.failed:
                 return ActionOutcome.fail(
                     f"Composite intent failed at step {i + 1}: {result.message}",
                     step=i + 1,
                     failed_intent=type(sub_intent).__name__,
+                    results=results,
+                )
+
+            if result.timed_out:
+                return ActionOutcome.timeout(
+                    f"Composite intent timed out at step {i + 1}: {result.message}",
+                    step=i + 1,
+                    timed_out_intent=type(sub_intent).__name__,
                     results=results,
                 )
 
