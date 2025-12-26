@@ -5,16 +5,26 @@ It detects the current state and takes appropriate actions to progress.
 """
 
 import time
-from typing import Optional
+from typing import Callable, Optional
 
 from model.actions.base import ActionOutcome
 from model.system_state import SystemState, SystemStateDetector
+
+
+# Type aliases for hook callbacks (used for testing/profiling)
+BeforeDetectHook = Callable[[], None]
+AfterDetectHook = Callable[[SystemState], None]
+BeforeActionHook = Callable[[str], None]
 
 
 def go(
     force_restart: bool = False,
     skip_login: bool = False,
     timeout: float = 180.0,
+    # Optional hooks for testing/profiling
+    on_before_detect: Optional[BeforeDetectHook] = None,
+    on_after_detect: Optional[AfterDetectHook] = None,
+    on_before_action: Optional[BeforeActionHook] = None,
 ) -> ActionOutcome:
     """Get to logged-in state from any starting point.
 
@@ -25,6 +35,9 @@ def go(
         force_restart: If True, close existing windows and start fresh.
         skip_login: If True, stop at the login screen (don't enter credentials).
         timeout: Overall timeout for the entire process.
+        on_before_detect: Optional callback before each state detection.
+        on_after_detect: Optional callback after detection with detected state.
+        on_before_action: Optional callback before each action with action name.
 
     Returns:
         ActionOutcome indicating success or failure.
@@ -55,9 +68,17 @@ def go(
                 elapsed=elapsed,
             )
 
+        # Hook: before detection
+        if on_before_detect:
+            on_before_detect()
+
         # Detect current state
         state = detector.detect()
         description = detector.get_state_description(state)
+
+        # Hook: after detection
+        if on_after_detect:
+            on_after_detect(state)
 
         # Only print if state changed
         if state != last_state:
@@ -124,6 +145,10 @@ def go(
         if state in (SystemState.RUNELITE_LAUNCHER, SystemState.RUNELITE_WELCOME,
                      SystemState.RUNELITE_LOGIN, SystemState.RUNELITE_CLICK_TO_PLAY):
             launch_initiated = False
+
+        # Hook: before action
+        if on_before_action:
+            on_before_action(state.name)
 
         # Execute action for current state
         result = _handle_state(state, skip_login)

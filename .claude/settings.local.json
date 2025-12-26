@@ -25,7 +25,10 @@
       "Bash(test:*)",
       "Bash(./venv/Scripts/pytest tests/unit/ -v --tb=short -q)",
       "Bash(..venvScriptspython cli.py go --timeout 120)",
-      "Bash(../venv/Scripts/python:*)"
+      "Bash(../venv/Scripts/python:*)",
+      "Bash(./venv/Scripts/pytest tests/e2e/test_go_resilience.py -v --tb=short)",
+      "Bash(./venv/Scripts/pytest tests/ -v --tb=short -q)",
+      "Bash(./venv/Scripts/pytest tests/e2e/test_go_resilience.py -v --tb=short -q)"
     ],
     "deny": [],
     "ask": []

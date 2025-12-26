@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Union
 
 import cv2
+import numpy as np
 
 from utilities.geometry import Point, Rectangle
 
@@ -9,6 +10,34 @@ from utilities.geometry import Point, Rectangle
 __PATH = Path(__file__).parent.parent
 IMAGES = __PATH.joinpath("images")
 BOT_IMAGES = IMAGES.joinpath("bot")
+
+# --- Template Cache ---
+# Cache loaded template images to avoid repeated disk I/O
+_template_cache: dict[str, np.ndarray] = {}
+
+
+def _load_template(path: Union[str, Path]) -> np.ndarray:
+    """Load a template image with caching.
+
+    Args:
+        path: Path to the template image file.
+
+    Returns:
+        The loaded image as a numpy array with alpha channel (BGRA).
+    """
+    key = str(path)
+    if key not in _template_cache:
+        img = cv2.imread(key, cv2.IMREAD_UNCHANGED)
+        if img is not None:
+            _template_cache[key] = img
+        else:
+            raise FileNotFoundError(f"Template not found: {key}")
+    return _template_cache[key]
+
+
+def clear_template_cache() -> None:
+    """Clear the template cache. Useful for testing or memory management."""
+    _template_cache.clear()
 
 
 def __imagesearcharea(template: Union[cv2.Mat, str, Path], im: cv2.Mat, confidence: float) -> Rectangle:
@@ -58,10 +87,8 @@ def search_img_in_rect(image: Union[cv2.Mat, str, Path], rect: Union[Rectangle, 
         >>> if deposit_all_btn:
         >>>     # Deposit all button was found
     """
-    if isinstance(image, str):
-        image = cv2.imread(image, cv2.IMREAD_UNCHANGED)
-    elif isinstance(image, Path):
-        image = cv2.imread(str(image), cv2.IMREAD_UNCHANGED)
+    if isinstance(image, (str, Path)):
+        image = _load_template(image)
     im = rect.screenshot() if isinstance(rect, Rectangle) else rect
 
     if found_rect := __imagesearcharea(image, im, confidence):

@@ -84,6 +84,8 @@ class TestLoginScreenDetector:
         window = MagicMock()
         window.rectangle.return_value = MagicMock(left=0, top=0, width=800, height=600)
         window.inventory_slots = None
+        # Make initialize() raise to simulate not being logged in
+        window.initialize.side_effect = Exception("Not logged in")
         return window
 
     def test_init_with_window(self, mock_window):
@@ -127,18 +129,22 @@ class TestLoginScreenDetector:
         assert detector.is_logged_in() is True
 
     def test_is_logged_in_false_when_no_inventory(self, mock_window):
-        """is_logged_in returns False when no inventory slots."""
+        """is_logged_in returns False when no inventory slots and no minimap orbs."""
         mock_window.inventory_slots = None
         detector = LoginScreenDetector(mock_window)
 
-        assert detector.is_logged_in() is False
+        # Mock _has_minimap_orbs to return False (not in game)
+        with patch.object(detector, "_has_minimap_orbs", return_value=False):
+            assert detector.is_logged_in() is False
 
     def test_is_logged_in_false_when_inventory_incomplete(self, mock_window):
-        """is_logged_in returns False when inventory has wrong slot count."""
+        """is_logged_in returns False when inventory has wrong slot count and no minimap orbs."""
         mock_window.inventory_slots = [MagicMock()] * 10  # Only 10 slots
         detector = LoginScreenDetector(mock_window)
 
-        assert detector.is_logged_in() is False
+        # Mock _has_minimap_orbs to return False (not in game)
+        with patch.object(detector, "_has_minimap_orbs", return_value=False):
+            assert detector.is_logged_in() is False
 
     def test_detect_state_returns_logged_in_when_in_game(self, mock_window):
         """detect_state returns LOGGED_IN when game UI is visible."""

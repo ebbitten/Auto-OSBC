@@ -4,10 +4,14 @@ Provides functionality to detect the current state of the game's
 login screen and locate UI elements for automated login.
 """
 
+import time
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
+
+import cv2
+import numpy as np
 
 if TYPE_CHECKING:
     from utilities.geometry import Rectangle
@@ -74,45 +78,109 @@ class LoginScreenDetector:
             window: The game window to detect login state from
         """
         self.window = window
+        # Screenshot cache for efficient multi-template detection
+        self._cached_screenshot: Optional[np.ndarray] = None
+        self._cached_win_rect: Optional["Rectangle"] = None
+        self._cache_time: float = 0.0
+
+    def _get_screenshot(self, max_age_ms: float = 200) -> tuple[np.ndarray, "Rectangle"]:
+        """Get cached screenshot or capture a new one.
+
+        Args:
+            max_age_ms: Maximum age of cached screenshot in milliseconds.
+
+        Returns:
+            Tuple of (screenshot as numpy array, window rectangle).
+        """
+        now = time.time() * 1000
+        if (
+            self._cached_screenshot is None
+            or self._cached_win_rect is None
+            or (now - self._cache_time) > max_age_ms
+        ):
+            self._cached_win_rect = self.window.rectangle()
+            self._cached_screenshot = self._cached_win_rect.screenshot()
+            self._cache_time = now
+        return self._cached_screenshot, self._cached_win_rect
+
+    def _clear_screenshot_cache(self) -> None:
+        """Clear the screenshot cache."""
+        self._cached_screenshot = None
+        self._cached_win_rect = None
+
+    def _search_template(
+        self, template_path: Path, confidence: float = 0.8
+    ) -> Optional["Rectangle"]:
+        """Search for a template using cached screenshot.
+
+        Args:
+            template_path: Path to the template image.
+            confidence: Match confidence threshold.
+
+        Returns:
+            Rectangle of the found template, or None.
+        """
+        if not template_path.exists():
+            return None
+
+        try:
+            from utilities import imagesearch as imsearch
+            from utilities.geometry import Rectangle
+
+            screenshot, win_rect = self._get_screenshot()
+
+            # Search in cached screenshot (returns coords relative to screenshot)
+            result = imsearch.search_img_in_rect(
+                str(template_path),
+                screenshot,  # Pass numpy array instead of Rectangle
+                confidence=confidence,
+            )
+
+            # Adjust coordinates to be relative to screen
+            if result is not None:
+                result.left += win_rect.left
+                result.top += win_rect.top
+
+            return result
+        except Exception:
+            return None
 
     def detect_state(self) -> LoginScreenInfo:
         """Detect the current login screen state.
 
         Returns:
             LoginScreenInfo with current state and field locations
-        """
-        # Check if already logged in first
-        if self.is_logged_in():
-            return LoginScreenInfo(state=LoginState.LOGGED_IN)
 
-        # Check for "Click to Play" button (post-login state)
-        play_button = self.get_click_to_play_button_location()
-        if play_button:
+        Note:
+            Detection order is optimized for performance:
+            1. INVALID_CREDENTIALS - unique "Try again" button (cheap, handles error)
+            2. WELCOME_SCREEN - structural validation returns button locations
+            3. LOGIN_SCREEN - login button present
+            4. CLICK_TO_PLAY - post-login state
+            5. LOGGED_IN - expensive (checks 4 templates), checked last
+        """
+        # Clear screenshot cache at start of detection cycle
+        # All template searches will use the same screenshot
+        self._clear_screenshot_cache()
+
+        # 1. Check for INVALID_CREDENTIALS first (unique "Try again" button)
+        try_again_button = self.get_try_again_button_location()
+        if try_again_button:
             return LoginScreenInfo(
-                state=LoginState.CLICK_TO_PLAY,
-                play_button=play_button,
+                state=LoginState.INVALID_CREDENTIALS,
+                error_message="Incorrect username or password",
             )
 
-        # Use UNIQUE identifiers to distinguish screens:
-        # - "New User" + "Existing User" buttons side by side = WELCOME_SCREEN
-        # - "Try again" button = INVALID_CREDENTIALS
-        # - "Login" button = LOGIN_SCREEN
-        #
-        # IMPORTANT: Check WELCOME first because it uses structural validation
-        # (both buttons at same Y position). Individual templates can have false
-        # positives on brown scroll textures.
-
-        # Check for WELCOME_SCREEN first using structural validation (most reliable)
-        if self._is_welcome_screen():
-            existing_user = self.get_existing_user_button_location()
+        # 2. Check for WELCOME_SCREEN using structural validation
+        # Returns button locations to avoid redundant searches
+        welcome_info = self._check_welcome_screen()
+        if welcome_info is not None:
             return LoginScreenInfo(
                 state=LoginState.WELCOME_SCREEN,
-                existing_user_button=existing_user,
+                existing_user_button=welcome_info,
             )
 
-        # Check for LOGIN_SCREEN first (has Login button)
-        # Must check before INVALID_CREDENTIALS because "Try again" template
-        # can match brown scroll texture on login screen
+        # 3. Check for LOGIN_SCREEN (has Login button)
         login_button = self.get_login_button_location()
         if login_button:
             username_field = self.get_username_field_location()
@@ -127,14 +195,18 @@ class LoginScreenDetector:
                 error_message=error_message,
             )
 
-        # Check for INVALID_CREDENTIALS screen (has "Try again" button but NO Login button)
-        # Only check after ruling out LOGIN screen
-        try_again_button = self.get_try_again_button_location()
-        if try_again_button:
+        # 4. Check for "Click to Play" button (post-login state)
+        play_button = self.get_click_to_play_button_location()
+        if play_button:
             return LoginScreenInfo(
-                state=LoginState.INVALID_CREDENTIALS,
-                error_message="Incorrect username or password",
+                state=LoginState.CLICK_TO_PLAY,
+                play_button=play_button,
             )
+
+        # 5. Check if already logged in (EXPENSIVE - 4 template matches)
+        # Only check if nothing else matched
+        if self.is_logged_in():
+            return LoginScreenInfo(state=LoginState.LOGGED_IN)
 
         # Unknown state
         return LoginScreenInfo(state=LoginState.UNKNOWN)
@@ -282,70 +354,54 @@ class LoginScreenDetector:
         Returns:
             True if on login screen, False otherwise
         """
-        try:
-            from utilities import imagesearch as imsearch
-
-            template_path = LOGIN_IMAGES_PATH / "cancel_button.png"
-            if not template_path.exists():
-                return False
-
-            result = imsearch.search_img_in_rect(
-                str(template_path),
-                self.window.rectangle(),
-                confidence=0.8,
-            )
-            return result is not None
-        except Exception:
-            return False
+        return self._search_template(LOGIN_IMAGES_PATH / "cancel_button.png") is not None
 
     def _is_welcome_screen(self) -> bool:
         """Check if we're on the welcome screen.
 
-        The welcome screen has BOTH "New User" AND "Existing User" buttons
-        side by side. We require BOTH to be found to avoid false positives
-        from individual button templates matching the scroll texture.
-
         Returns:
             True if on welcome screen, False otherwise
         """
-        try:
-            from utilities import imagesearch as imsearch
+        return self._check_welcome_screen() is not None
 
-            win_rect = self.window.rectangle()
+    def _check_welcome_screen(self) -> Optional["Rectangle"]:
+        """Check if we're on the welcome screen and return the Existing User button.
+
+        The welcome screen has BOTH "New User" AND "Existing User" buttons
+        side by side. We require BOTH to be found AND the Cancel button must
+        NOT be present (Cancel only appears on login screen).
+
+        Returns:
+            Rectangle of the Existing User button if on welcome screen, None otherwise.
+            This eliminates the need to search for the button again.
+        """
+        try:
+            # First check if Cancel button is present - if so, we're on LOGIN not WELCOME
+            cancel = self._search_template(LOGIN_IMAGES_PATH / "cancel_button.png")
+            if cancel:
+                return None  # Cancel button means LOGIN screen, not WELCOME
 
             # Check for Existing User button
-            existing_user_path = LOGIN_IMAGES_PATH / "existing_user_button.png"
-            if not existing_user_path.exists():
-                return False
-
-            existing_user = imsearch.search_img_in_rect(
-                str(existing_user_path),
-                win_rect,
-                confidence=0.8,
+            existing_user = self._search_template(
+                LOGIN_IMAGES_PATH / "existing_user_button.png"
             )
-
             if not existing_user:
-                return False
+                return None
 
             # Also verify "New User" button is present (both must exist on welcome)
-            new_user_path = LOGIN_IMAGES_PATH / "new_user_button.png"
-            if new_user_path.exists():
-                new_user = imsearch.search_img_in_rect(
-                    str(new_user_path),
-                    win_rect,
-                    confidence=0.8,
-                )
-                # Both buttons must be found AND they should be at similar Y position
-                # (side by side on the welcome screen)
-                if new_user and existing_user:
-                    y_diff = abs(new_user.top - existing_user.top)
-                    # Buttons should be roughly on the same horizontal line (within 50px)
-                    if y_diff < 50:
-                        return True
+            new_user = self._search_template(LOGIN_IMAGES_PATH / "new_user_button.png")
 
-            return False
+            # Both buttons must be found AND they should be at similar Y position
+            # (side by side on the welcome screen)
+            if new_user and existing_user:
+                y_diff = abs(new_user.top - existing_user.top)
+                # Buttons should be roughly on the same horizontal line (within 50px)
+                if y_diff < 50:
+                    return existing_user  # Return the button we found!
+
+            return None
         except Exception:
-            return False
+            return None
 
     def get_existing_user_button_location(self) -> Optional["Rectangle"]:
         """Find the 'Existing User' button on the welcome screen.
@@ -355,20 +411,7 @@ class LoginScreenDetector:
         Returns:
             Rectangle of the button, or None if not found
         """
-        try:
-            from utilities import imagesearch as imsearch
-
-            template_path = LOGIN_IMAGES_PATH / "existing_user_button.png"
-            if not template_path.exists():
-                return None
-
-            return imsearch.search_img_in_rect(
-                str(template_path),
-                self.window.rectangle(),
-                confidence=0.8,
-            )
-        except Exception:
-            return None
+        return self._search_template(LOGIN_IMAGES_PATH / "existing_user_button.png")
 
     def get_click_to_play_button_location(self) -> Optional["Rectangle"]:
         """Find the 'Click here to Play' button after login.
@@ -379,21 +422,7 @@ class LoginScreenDetector:
         Returns:
             Rectangle of the button, or None if not found
         """
-        try:
-            from utilities import imagesearch as imsearch
-
-            template_path = LOGIN_IMAGES_PATH / "click_to_play.png"
-            if not template_path.exists():
-                return None
-
-            result = imsearch.search_img_in_rect(
-                str(template_path),
-                self.window.rectangle(),
-                confidence=0.8,
-            )
-            return result
-        except Exception:
-            return None
+        return self._search_template(LOGIN_IMAGES_PATH / "click_to_play.png")
 
     def get_error_message(self) -> Optional[str]:
         """Extract any error message from the login screen.
@@ -413,21 +442,7 @@ class LoginScreenDetector:
         Returns:
             Rectangle of the button, or None if not found
         """
-        try:
-            from utilities import imagesearch as imsearch
-
-            template_path = LOGIN_IMAGES_PATH / "try_again_button.png"
-            if not template_path.exists():
-                return None
-
-            result = imsearch.search_img_in_rect(
-                str(template_path),
-                self.window.rectangle(),
-                confidence=0.8,
-            )
-            return result
-        except Exception:
-            return None
+        return self._search_template(LOGIN_IMAGES_PATH / "try_again_button.png")
 
     def is_on_invalid_credentials_screen(self) -> bool:
         """Check if we're on the invalid credentials error screen.
@@ -441,21 +456,11 @@ class LoginScreenDetector:
 
     def _find_login_button_template(self) -> Optional["Rectangle"]:
         """Find login button using template matching."""
-        try:
-            from utilities import imagesearch as imsearch
-
-            template_path = LOGIN_IMAGES_PATH / "login_button.png"
-            if not template_path.exists():
-                return None
-
-            # Use higher confidence (0.9) to avoid false matches
-            return imsearch.search_img_in_rect(
-                str(template_path),
-                self.window.rectangle(),
-                confidence=0.9,
-            )
-        except Exception:
-            return None
+        # Use higher confidence (0.9) to avoid false matches
+        return self._search_template(
+            LOGIN_IMAGES_PATH / "login_button.png",
+            confidence=0.9,
+        )
 
     def _find_welcome_screen_template(self) -> Optional["Rectangle"]:
         """Find welcome screen elements using template matching.
@@ -463,36 +468,13 @@ class LoginScreenDetector:
         Looks for either the 'Existing User' button or 'Welcome to RuneScape' text.
         These indicate we're on the initial login screen before entering credentials.
         """
-        try:
-            from utilities import imagesearch as imsearch
+        # Try to find "Existing User" button
+        result = self._search_template(LOGIN_IMAGES_PATH / "existing_user_button.png")
+        if result:
+            return result
 
-            client_rect = self.window.rectangle()
-
-            # Try to find "Existing User" button
-            existing_user_path = LOGIN_IMAGES_PATH / "existing_user_button.png"
-            if existing_user_path.exists():
-                result = imsearch.search_img_in_rect(
-                    str(existing_user_path),
-                    client_rect,
-                    confidence=0.8,
-                )
-                if result:
-                    return result
-
-            # Try to find "Welcome to RuneScape" text
-            welcome_path = LOGIN_IMAGES_PATH / "welcome_to_runescape.png"
-            if welcome_path.exists():
-                result = imsearch.search_img_in_rect(
-                    str(welcome_path),
-                    client_rect,
-                    confidence=0.8,
-                )
-                if result:
-                    return result
-
-            return None
-        except Exception:
-            return None
+        # Try to find "Welcome to RuneScape" text
+        return self._search_template(LOGIN_IMAGES_PATH / "welcome_to_runescape.png")
 
     def _detect_login_screen_ocr(self) -> bool:
         """Detect login screen using OCR.

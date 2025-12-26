@@ -16,7 +16,7 @@ class TestCreateParser:
     """Test CLI parser creation."""
 
     def test_parser_has_all_commands(self):
-        """Test that parser has exactly 4 commands."""
+        """Test that parser has exactly 5 commands."""
         parser = create_parser()
 
         subparsers_action = None
@@ -28,8 +28,9 @@ class TestCreateParser:
         assert subparsers_action is not None
         choices = list(subparsers_action.choices.keys())
 
-        # Only 4 commands
-        assert len(choices) == 4
+        # 5 commands (go, start, gui, login, status)
+        assert len(choices) == 5
+        assert "go" in choices
         assert "start" in choices
         assert "gui" in choices
         assert "login" in choices
@@ -252,19 +253,19 @@ class TestCmdHandlers:
 
     def test_cmd_status(self):
         """Test status command."""
-        from model.actions.base import ActionOutcome
+        from enum import Enum, auto
 
-        mock_osbc = MagicMock()
-        mock_result = ActionOutcome.ok(
-            "Status",
-            osbc_running=True,
-            runelite_running=True,
-            osbc_title="OS Bot",
-            runelite_title="RuneLite",
-        )
-        mock_osbc.check_windows_status.return_value = mock_result
+        # Create mock SystemState enum
+        class MockSystemState(Enum):
+            RUNELITE_LOGGED_IN = auto()
 
-        with patch.dict("sys.modules", {"model.actions": MagicMock(osbc=mock_osbc)}):
+        mock_detector = MagicMock()
+        mock_detector.detect.return_value = MockSystemState.RUNELITE_LOGGED_IN
+        mock_detector.get_state_description.return_value = "Fully logged in"
+
+        mock_detector_class = MagicMock(return_value=mock_detector)
+
+        with patch("model.system_state.SystemStateDetector", mock_detector_class):
             parser = create_parser()
             args = parser.parse_args(["status"])
 
@@ -272,7 +273,7 @@ class TestCmdHandlers:
             result = cmd_status(args)
 
             assert result == 0
-            mock_osbc.check_windows_status.assert_called_once()
+            mock_detector.detect.assert_called_once()
 
 
 class TestMain:
