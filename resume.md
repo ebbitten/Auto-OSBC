@@ -1,36 +1,78 @@
-# Session Resume - Login Automation & Permission Fixes
+# Session Resume - Permission Test Required
+
+## FIRST THING TO DO (After Session Restart)
+
+Run this test sequence to verify permissions work:
+
+```bash
+# 1. Script test (should run WITHOUT prompt)
+python scripts/recorder.py --list-templates
+
+# 2. CLI test (should run WITHOUT prompt)
+osbc status
+
+# 3. Pytest test (should run WITHOUT prompt)
+pytest tests/unit/actions/test_window.py -v --tb=no
+
+# 4. Git read test (should run WITHOUT prompt)
+git status
+
+# 5. Git write test (SHOULD PROMPT - human control)
+git add .claude/settings.local.json
+```
+
+**Note on Python commands:** Use `python scripts/...` (not full absolute paths like `"C:/Users/.../python.exe"`). The patterns are set up to match:
+- `python ...`
+- `venv/Scripts/python ...`
+- `./venv/Scripts/python ...`
+
+**Expected Results:**
+- Tests 1-4: Run immediately, no permission prompts
+- Test 5: Prompts for permission (git write operations stay under human control)
+
+If any of 1-4 prompt for permission, the fix didn't work and we need to debug.
+
+---
 
 ## Current State
 
 We've been working on two parallel tracks:
-1. **Permission pattern fix** - Fixed a bug preventing Python commands from running without prompts
+1. **Permission pattern fix** - Simplified to 18 clean patterns
 2. **Login automation** - Building templates for automated login flow
 
 ---
 
-## 1. Permission Pattern Fix (COMPLETED)
+## 1. Permission Pattern Fix (PENDING TEST)
 
 ### The Problem
-Claude Code kept asking for permission to run Python venv commands despite wildcard patterns being set.
+Claude Code kept asking for permission to run Python scripts despite 100+ specific patterns.
 
-### Root Cause
-In `.claude/settings.local.json`, line 81 had a **space before the colon** in the wildcard pattern:
+### Solution: Simplified Patterns
+Replaced 100+ complex path-specific patterns with 18 simple wildcards:
+
 ```json
-// BROKEN (space before :*)
-"Bash(\"C:/Users/adamh/VSCodeProjects/Auto-OSBC/venv/Scripts/python.exe\" :*)"
-
-// FIXED (no space before :*)
-"Bash(\"C:/Users/adamh/VSCodeProjects/Auto-OSBC/venv/Scripts/python.exe\":*)"
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",      // Any python command
+      "Bash(pytest:*)",      // Any pytest command
+      "Bash(osbc:*)",        // Any osbc CLI command
+      "Bash(git status:*)",  // Read-only git
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      // ... file ops (ls, cat, etc.)
+    ]
+  }
+}
 ```
 
-### Fix Applied
-The space was removed. The fix will take effect in **new Claude Code sessions** (settings are cached at session start).
+### Git Control (Human Only)
+NOT in allow list (will still prompt):
+- `git add` / `git commit` / `git push` / `git checkout`
 
-### Commands That Should Work Without Prompts
-After starting a new session:
-- `"C:/Users/adamh/VSCodeProjects/Auto-OSBC/venv/Scripts/python.exe" scripts/recorder.py --any-args`
-- `"C:/Users/adamh/VSCodeProjects/Auto-OSBC/venv/Scripts/python.exe" -c "any code"`
-- Any Python command with that venv path
+### Behavior Change
+Also updated `CLAUDE.md` with "Available Scripts" section to encourage using scripts instead of inline Python.
 
 ---
 

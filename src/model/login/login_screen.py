@@ -85,20 +85,14 @@ class LoginScreenDetector:
         if self.is_logged_in():
             return LoginScreenInfo(state=LoginState.LOGGED_IN)
 
-        # Check for welcome screen (has "Existing User" button)
-        existing_user = self.get_existing_user_button_location()
-        if existing_user:
-            return LoginScreenInfo(
-                state=LoginState.WELCOME_SCREEN,
-                existing_user_button=existing_user,
-            )
-
-        # Check if on login screen (has username field)
+        # Check for login button FIRST - it's more specific than existing_user
+        # (existing_user template can false-match on similar brown buttons)
+        login_button = self.get_login_button_location()
         username_field = self.get_username_field_location()
         password_field = self.get_password_field_location()
-        login_button = self.get_login_button_location()
 
-        if username_field or login_button:
+        if login_button:
+            # We found the login button - we're on the LOGIN_SCREEN
             error_message = self.get_error_message()
 
             # Determine specific state based on error message
@@ -124,6 +118,23 @@ class LoginScreenDetector:
                 username_field=username_field,
                 password_field=password_field,
                 login_button=login_button,
+            )
+
+        # Check for welcome screen (has "Existing User" button)
+        existing_user = self.get_existing_user_button_location()
+        if existing_user:
+            return LoginScreenInfo(
+                state=LoginState.WELCOME_SCREEN,
+                existing_user_button=existing_user,
+            )
+
+        # Fallback: Check for username field when login button not found
+        if username_field:
+            return LoginScreenInfo(
+                state=LoginState.LOGIN_SCREEN,
+                username_field=username_field,
+                password_field=password_field,
+                login_button=None,
             )
 
         # Unknown state

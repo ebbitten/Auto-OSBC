@@ -11,6 +11,41 @@ Required Reading:
 - `docs/api-reference.md` - Bot framework APIs and utilities
 - `docs/debugging-guide.md` - Visual debugging tools and techniques
 
+## Available Scripts (USE THESE - Don't Write Inline Python!)
+
+When interacting with the game or capturing data, USE these scripts instead of writing inline Python:
+
+| Script | Purpose | Example |
+|--------|---------|---------|
+| `python scripts/recorder.py` | Capture screenshots, extract templates | `python scripts/recorder.py --window "RuneLite" --duration 5` |
+| `python scripts/debug_console.py` | Interactive debugging | `python scripts/debug_console.py` |
+| `python scripts/manual_capture.py` | Quick screenshot capture | `python scripts/manual_capture.py "description"` |
+| `python scripts/performance_profiler.py` | Profile detection speed | `python scripts/performance_profiler.py` |
+
+### Recorder Commands (Most Useful)
+```bash
+# List available templates
+python scripts/recorder.py --list-templates
+
+# Test if a template matches on screen
+python scripts/recorder.py --test-template src/images/bot/login/existing_user_button.png --window "RuneLite"
+
+# Capture screenshots from a window
+python scripts/recorder.py --window "RuneLite" --duration 5 --interval 1000
+
+# Extract a region as a new template
+python scripts/recorder.py --from-session "captures/2025-..." --extract-template "X,Y,W,H,template_name"
+```
+
+## CLI Commands
+
+| Command | Purpose |
+|---------|---------|
+| `osbc status` | Check if OSBC/RuneLite windows are running |
+| `osbc start --headless` | Launch RuneLite via OSBC (no GUI) |
+| `osbc start` | Launch RuneLite and open OSBC GUI |
+| `osbc login` | Perform automated login on RuneLite |
+
 ## Mandatory TDD Workflow for Bot Development
 
 ### Pre-Implementation (REQUIRED):

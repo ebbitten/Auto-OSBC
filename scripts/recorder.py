@@ -460,11 +460,11 @@ def test_template(
 
         if location:
             center = pyautogui.center(location)
-            print(f"  ✓ Template FOUND at ({center.x}, {center.y})")
+            print(f"  [OK] Template FOUND at ({center.x}, {center.y})")
             print(f"    Box: {location}")
             return True
         else:
-            print(f"  ✗ Template NOT FOUND (confidence={confidence})")
+            print(f"  [--] Template NOT FOUND (confidence={confidence})")
             return False
 
     except Exception as e:

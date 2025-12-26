@@ -159,12 +159,14 @@ class LoginService:
             password_field = self.detector.get_password_field_location()
             login_button = self.detector.get_login_button_location()
 
-            if username_field is None or login_button is None:
+            # We only require login_button - username field is optional
+            # (we can Tab to navigate between fields)
+            if login_button is None:
                 return ActionOutcome.fail(
-                    "Could not find login field or button",
+                    "Could not find login button",
                     username_field_found=username_field is not None,
                     password_field_found=password_field is not None,
-                    login_button_found=login_button is not None,
+                    login_button_found=False,
                 )
 
             # Build and execute login sequence
