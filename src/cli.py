@@ -26,9 +26,15 @@ def cmd_go(args):
         force_restart=args.force_restart,
         skip_login=args.skip_login,
         timeout=args.timeout,
+        record=args.record,
     )
 
     print(result.message)
+
+    # Print recording report path if available
+    if args.record and result.data.get("recording_report"):
+        print(f"Recording report: {result.data['recording_report']}")
+
     return 0 if result.success else 1
 
 
@@ -130,6 +136,7 @@ Examples:
     go_parser.add_argument("--skip-login", action="store_true", help="Stop at login screen")
     go_parser.add_argument("--force-restart", action="store_true", help="Close existing windows first")
     go_parser.add_argument("--timeout", type=float, default=180.0, help="Overall timeout (default: 180)")
+    go_parser.add_argument("--record", action="store_true", help="Record before/after screenshots of each action")
     go_parser.set_defaults(func=cmd_go)
 
     # --- start ---

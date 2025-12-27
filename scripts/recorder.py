@@ -29,6 +29,334 @@ import mss
 import pyautogui
 
 
+class ActionRecorder:
+    """Records before/after screenshots for each action with annotations.
+
+    Use this to debug automation flows by seeing exactly what the bot
+    saw and clicked at each step.
+
+    Usage:
+        recorder = ActionRecorder("RuneLite")
+        recorder.start_session("osbc_go_test")
+
+        # Before each action
+        recorder.before_action("click_existing_user", "Clicking 'Existing User' button", target_point=(450, 300))
+        # ... perform action ...
+        recorder.after_action("click_existing_user", success=True, message="Button clicked")
+
+        # At the end
+        recorder.end_session()
+        recorder.generate_report()
+    """
+
+    _instance: Optional["ActionRecorder"] = None
+
+    def __init__(
+        self,
+        window_title: str = "RuneLite",
+        output_dir: Optional[Path] = None,
+    ):
+        self.window_title = window_title
+        self.output_dir = output_dir or Path("captures/action_recordings")
+        self._session_dir: Optional[Path] = None
+        self._session_name: Optional[str] = None
+        self._actions: List[Dict[str, Any]] = []
+        self._action_index = 0
+        self._sct = mss.mss()
+        self._window_bounds: Optional[Dict[str, int]] = None
+        self._start_time: Optional[datetime] = None
+
+    @classmethod
+    def get_instance(cls, window_title: str = "RuneLite") -> "ActionRecorder":
+        """Get or create the singleton instance."""
+        if cls._instance is None:
+            cls._instance = cls(window_title)
+        return cls._instance
+
+    @classmethod
+    def clear_instance(cls):
+        """Clear the singleton instance."""
+        cls._instance = None
+
+    def _find_window(self) -> Optional[Dict[str, int]]:
+        """Find the target window and return its bounds."""
+        try:
+            import pywinctl as pwc
+            windows = pwc.getWindowsWithTitle(self.window_title)
+            if windows:
+                win = windows[0]
+                box = win.box
+                return {
+                    "x": box.left,
+                    "y": box.top,
+                    "width": box.width,
+                    "height": box.height,
+                }
+        except ImportError:
+            pass
+
+        try:
+            from utilities.window import Window
+            window = Window(self.window_title, padding_top=26, padding_left=0)
+            rect = window.rectangle()
+            if rect:
+                return {
+                    "x": rect.left,
+                    "y": rect.top,
+                    "width": rect.width,
+                    "height": rect.height,
+                }
+        except Exception:
+            pass
+
+        return None
+
+    def start_session(self, session_name: str = "action_test") -> Path:
+        """Start a new recording session."""
+        self._window_bounds = self._find_window()
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self._session_name = f"{session_name}_{timestamp}"
+        self._session_dir = self.output_dir / self._session_name
+        self._session_dir.mkdir(parents=True, exist_ok=True)
+        self._actions = []
+        self._action_index = 0
+        self._start_time = datetime.now()
+        print(f"[ActionRecorder] Session started: {self._session_dir}")
+        return self._session_dir
+
+    def _capture_screenshot(self, suffix: str = "") -> Optional[Path]:
+        """Capture a screenshot of the target window."""
+        self._window_bounds = self._find_window()
+        if not self._window_bounds or not self._session_dir:
+            return None
+
+        try:
+            import numpy as np
+            monitor = {
+                "left": self._window_bounds["x"],
+                "top": self._window_bounds["y"],
+                "width": self._window_bounds["width"],
+                "height": self._window_bounds["height"],
+            }
+            screenshot = self._sct.grab(monitor)
+            img = np.array(screenshot)
+            img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+
+            filename = f"{self._action_index:03d}_{suffix}.png"
+            filepath = self._session_dir / filename
+            cv2.imwrite(str(filepath), img)
+            return filepath
+        except Exception as e:
+            print(f"[ActionRecorder] Screenshot failed: {e}")
+            return None
+
+    def _annotate_screenshot(
+        self,
+        img_path: Path,
+        action_name: str,
+        description: str,
+        phase: str,
+        target_point: Optional[tuple] = None,
+        result: Optional[bool] = None,
+        message: Optional[str] = None,
+    ) -> Path:
+        """Add annotations to a screenshot."""
+        img = cv2.imread(str(img_path))
+        if img is None:
+            return img_path
+
+        h, w = img.shape[:2]
+        bg_color = (40, 40, 40)
+        text_color = (255, 255, 255)
+        before_color = (0, 165, 255)
+        after_success = (0, 255, 0)
+        after_fail = (0, 0, 255)
+        target_color = (255, 0, 255)
+
+        bar_height = 60
+        cv2.rectangle(img, (0, 0), (w, bar_height), bg_color, -1)
+
+        if phase == "BEFORE":
+            phase_color = before_color
+        else:
+            phase_color = after_success if result else after_fail
+
+        cv2.rectangle(img, (0, 0), (8, bar_height), phase_color, -1)
+
+        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        cv2.putText(img, f"[{phase}] {action_name}", (15, 22),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, phase_color, 2)
+        cv2.putText(img, description[:80], (15, 42),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 1)
+        cv2.putText(img, timestamp, (w - 100, 22),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 1)
+
+        if message:
+            cv2.putText(img, message[:60], (w - 400, 42),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        after_success if result else after_fail, 1)
+
+        if target_point and phase == "BEFORE":
+            tx, ty = target_point
+            ty_adjusted = ty + bar_height
+            cv2.line(img, (tx - 20, ty_adjusted), (tx + 20, ty_adjusted), target_color, 2)
+            cv2.line(img, (tx, ty_adjusted - 20), (tx, ty_adjusted + 20), target_color, 2)
+            cv2.circle(img, (tx, ty_adjusted), 15, target_color, 2)
+            cv2.putText(img, f"TARGET ({tx}, {ty})", (tx + 20, ty_adjusted - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, target_color, 1)
+
+        annotated_path = img_path.parent / f"{img_path.stem}_annotated.png"
+        cv2.imwrite(str(annotated_path), img)
+        return annotated_path
+
+    def before_action(
+        self,
+        action_name: str,
+        description: str,
+        target_point: Optional[tuple] = None,
+        detected_state: Optional[str] = None,
+    ) -> Optional[Path]:
+        """Record state before performing an action."""
+        if not self._session_dir:
+            return None
+
+        raw_path = self._capture_screenshot(f"{action_name}_before")
+        if not raw_path:
+            return None
+
+        annotated_path = self._annotate_screenshot(
+            raw_path, action_name, description, "BEFORE", target_point=target_point,
+        )
+
+        action_record = {
+            "index": self._action_index,
+            "name": action_name,
+            "description": description,
+            "detected_state": detected_state,
+            "target_point": target_point,
+            "before_screenshot": str(raw_path.name),
+            "before_annotated": str(annotated_path.name),
+            "timestamp_before": datetime.now().isoformat(),
+        }
+        self._actions.append(action_record)
+        print(f"[ActionRecorder] #{self._action_index} BEFORE: {action_name}")
+        return annotated_path
+
+    def after_action(
+        self,
+        action_name: str,
+        success: bool,
+        message: str = "",
+        new_state: Optional[str] = None,
+    ) -> Optional[Path]:
+        """Record state after performing an action."""
+        if not self._session_dir or not self._actions:
+            return None
+
+        current_action = self._actions[-1]
+        raw_path = self._capture_screenshot(f"{action_name}_after")
+        if not raw_path:
+            return None
+
+        annotated_path = self._annotate_screenshot(
+            raw_path, action_name, current_action.get("description", ""),
+            "AFTER", result=success, message=message,
+        )
+
+        current_action.update({
+            "after_screenshot": str(raw_path.name),
+            "after_annotated": str(annotated_path.name),
+            "timestamp_after": datetime.now().isoformat(),
+            "success": success,
+            "message": message,
+            "new_state": new_state,
+        })
+
+        result_str = "SUCCESS" if success else "FAILED"
+        print(f"[ActionRecorder] #{self._action_index} AFTER: {result_str}")
+        self._action_index += 1
+        return annotated_path
+
+    def end_session(self) -> None:
+        """End the recording session and save metadata."""
+        if not self._session_dir:
+            return
+
+        end_time = datetime.now()
+        metadata = {
+            "session_name": self._session_name,
+            "start_time": self._start_time.isoformat() if self._start_time else None,
+            "end_time": end_time.isoformat(),
+            "duration_seconds": (end_time - self._start_time).total_seconds() if self._start_time else 0,
+            "total_actions": len(self._actions),
+            "successful": sum(1 for a in self._actions if a.get("success", False)),
+            "failed": sum(1 for a in self._actions if not a.get("success", True)),
+            "actions": self._actions,
+        }
+
+        with open(self._session_dir / "session.json", "w") as f:
+            json.dump(metadata, f, indent=2)
+
+        print(f"[ActionRecorder] Session ended: {len(self._actions)} actions")
+
+    def generate_report(self) -> Optional[Path]:
+        """Generate an HTML report for easy review."""
+        if not self._session_dir or not self._actions:
+            return None
+
+        successful = sum(1 for a in self._actions if a.get("success", False))
+        failed = sum(1 for a in self._actions if not a.get("success", True))
+        duration = (datetime.now() - self._start_time).total_seconds() if self._start_time else 0
+
+        html = f"""<!DOCTYPE html>
+<html><head><title>Action Recording: {self._session_name}</title>
+<style>
+body {{ font-family: Arial; margin: 20px; background: #1a1a1a; color: #eee; }}
+h1 {{ color: #4CAF50; }}
+.action {{ margin: 20px 0; padding: 15px; border: 1px solid #333; border-radius: 8px; background: #2a2a2a; }}
+.action.success {{ border-left: 4px solid #4CAF50; }}
+.action.failed {{ border-left: 4px solid #f44336; }}
+.screenshots {{ display: flex; gap: 20px; margin-top: 10px; }}
+.screenshot img {{ max-width: 500px; border: 1px solid #444; }}
+.screenshot label {{ display: block; margin-top: 5px; color: #888; }}
+.meta {{ color: #888; font-size: 0.9em; }}
+.success-badge {{ color: #4CAF50; font-weight: bold; }}
+.failed-badge {{ color: #f44336; font-weight: bold; }}
+.summary {{ background: #333; padding: 15px; border-radius: 8px; margin-bottom: 20px; }}
+</style></head><body>
+<h1>Action Recording: {self._session_name}</h1>
+<div class="summary">
+<p><strong>Actions:</strong> {len(self._actions)} |
+<span class="success-badge">Success: {successful}</span> |
+<span class="failed-badge">Failed: {failed}</span> |
+Duration: {duration:.1f}s</p>
+</div>
+"""
+        for action in self._actions:
+            sc = "success" if action.get("success", False) else "failed"
+            bc = "success-badge" if action.get("success", False) else "failed-badge"
+            rt = "SUCCESS" if action.get("success", False) else "FAILED"
+
+            html += f"""<div class="action {sc}">
+<h3>#{action['index']}: {action['name']}</h3>
+<p>{action.get('description', '')}</p>
+<p class="meta"><span class="{bc}">{rt}</span> {action.get('message', '')}</p>
+<p class="meta">Target: {action.get('target_point', 'N/A')} | State: {action.get('detected_state', '?')} -&gt; {action.get('new_state', '?')}</p>
+<div class="screenshots">
+<div class="screenshot"><img src="{action.get('before_annotated', '')}"><label>BEFORE</label></div>
+<div class="screenshot"><img src="{action.get('after_annotated', '')}"><label>AFTER</label></div>
+</div></div>
+"""
+        html += "</body></html>"
+
+        report_path = self._session_dir / "report.html"
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(html)
+
+        print(f"[ActionRecorder] Report: {report_path}")
+        return report_path
+
+
 class Recorder:
     """Continuous game state recorder."""
 

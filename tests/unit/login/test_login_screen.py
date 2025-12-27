@@ -19,7 +19,6 @@ class TestLoginState:
         assert LoginState.LOGIN_SCREEN is not None
         assert LoginState.LOGGED_IN is not None
         assert LoginState.CONNECTION_ERROR is not None
-        assert LoginState.INVALID_CREDENTIALS is not None
 
     def test_login_states_are_distinct(self):
         """Each login state should have a unique value."""
@@ -28,7 +27,6 @@ class TestLoginState:
             LoginState.LOGIN_SCREEN,
             LoginState.LOGGED_IN,
             LoginState.CONNECTION_ERROR,
-            LoginState.INVALID_CREDENTIALS,
         ]
         assert len(states) == len(set(states))
 
@@ -68,11 +66,11 @@ class TestLoginScreenInfo:
     def test_create_with_error_message(self):
         """Create LoginScreenInfo with error message."""
         info = LoginScreenInfo(
-            state=LoginState.INVALID_CREDENTIALS,
-            error_message="Invalid username or password",
+            state=LoginState.CONNECTION_ERROR,
+            error_message="Connection error",
         )
-        assert info.state == LoginState.INVALID_CREDENTIALS
-        assert info.error_message == "Invalid username or password"
+        assert info.state == LoginState.CONNECTION_ERROR
+        assert info.error_message == "Connection error"
 
 
 class TestLoginScreenDetector:
@@ -158,11 +156,12 @@ class TestLoginScreenDetector:
         """detect_state returns LOGIN_SCREEN when on login screen."""
         detector = LoginScreenDetector(mock_window)
 
-        with patch.object(detector, "is_logged_in", return_value=False):
+        with patch.object(detector, "_check_welcome_screen", return_value=None):
             with patch.object(detector, "_find_login_button_template") as mock_find:
                 mock_find.return_value = MagicMock()
-                info = detector.detect_state()
-                assert info.state == LoginState.LOGIN_SCREEN
+                with patch.object(detector, "_is_login_screen", return_value=True):
+                    info = detector.detect_state()
+                    assert info.state == LoginState.LOGIN_SCREEN
 
     def test_detect_state_returns_unknown_when_nothing_detected(self, mock_window):
         """detect_state returns UNKNOWN when state cannot be determined."""

@@ -674,3 +674,88 @@ black --check src/
 - Performance validation
 - Documentation updates
 - Deployment verification
+
+## Backlog Management
+
+### Two-Tier System
+
+The project uses a two-tier backlog system for organizing work:
+
+#### Tier 1: `resume.md` (Short-term / Session Work)
+**Purpose**: Track current sprint items and session-level work
+**Location**: `resume.md` (root directory)
+**When to use**:
+- Actionable tasks for this week
+- Bug fixes discovered during sessions
+- Small improvements (< 1 day effort)
+- Items being actively worked on
+
+**Format**:
+```markdown
+## 10. Backlog
+
+### Completed
+- [x] Completed task
+
+### High Priority
+- [ ] TICKET-1: Description
+
+### Medium Priority
+- [ ] Task description
+
+### Low Priority
+- [ ] Future task
+```
+
+#### Tier 2: `docs/backlog/` (Long-term Planning)
+**Purpose**: Track epics, multi-week initiatives, architectural decisions
+**Location**: `docs/backlog/BACK-XXX-*.md`
+**When to use**:
+- Large features (> 1 week effort)
+- Architectural changes
+- Framework enhancements
+- Multi-phase projects
+
+**Ticket Format**:
+```markdown
+# BACK-XXX: Title
+
+## Epic Overview
+**Priority**: High/Medium/Low
+**Effort**: Small/Medium/Large
+**Status**: Not Started/In Progress/Complete
+**Dependencies**: BACK-YYY
+
+## Problem Statement
+...
+
+## Success Criteria
+- [ ] Criterion 1
+- [ ] Criterion 2
+```
+
+### Cross-Referencing
+
+When working on a task from `docs/backlog/`:
+1. Create short-term items in `resume.md` referencing the BACK-XXX ticket
+2. Update BACK-XXX status as sub-tasks complete
+3. Mark BACK-XXX as complete when all criteria met
+
+Example:
+```markdown
+# In resume.md:
+### High Priority
+- [ ] Visual test fixtures (see BACK-001 Sub-Task 2)
+- [ ] Screenshot-based regression tests (BACK-001)
+
+# In docs/backlog/BACK-001:
+**Status**: In Progress
+- [x] Sub-Task 1: Test Infrastructure Setup
+- [ ] Sub-Task 2: Visual Testing Framework  ← Currently working
+```
+
+### Maintenance
+
+**During sessions**: Update `resume.md` with new discoveries and completed items
+**Weekly**: Review `docs/backlog/` tickets for accuracy
+**On completion**: Mark BACK-XXX as complete with summary of what was done

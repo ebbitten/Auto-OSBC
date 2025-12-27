@@ -3,14 +3,27 @@
 ## Epic Overview
 **Priority**: Low
 **Effort**: Small (1-2 weeks)
-**Status**: Not Started
+**Status**: Partial Progress (Dec 2025)
 **Dependencies**: None
 
-## Problem Statement
-During WSL2 development session, mypy type checking revealed 13 errors across 8 files:
-- Missing type stubs for third-party libraries (`pyautogui`, `customtkinter`, `pytweening`)
-- Module path conflicts (e.g., `events_server.py` found under multiple names)
-- Import resolution issues affecting type safety
+## Progress Summary (Dec 2025)
+Original stub issues resolved, but new issues discovered:
+- ✅ `types-PyAutoGUI` installed
+- ✅ `types-Deprecated` installed
+- ⚠️ **767 errors** in 47 files - mostly missing type annotations (not stub issues)
+
+## Original Problem Statement (Status)
+~~During WSL2 development session, mypy type checking revealed 13 errors across 8 files:~~
+- ~~Missing type stubs for third-party libraries~~ → **Stubs installed**
+- ~~Module path conflicts~~ → **Mostly resolved**
+- ~~Import resolution issues~~ → **Fixed with --ignore-missing-imports**
+
+## Current Status (Dec 2025)
+New mypy run shows different issues:
+- **767 errors** in 47 files (up from 13, but different type)
+- Errors are `no-untyped-def` - missing type annotations in source code
+- Not stub issues - the code itself needs type hints
+- Main offenders: `fonts.py`, `settings.py`, `cli.py`, action modules
 
 While type checking is non-critical for runtime functionality, it provides:
 - Better IDE autocomplete and intellisense

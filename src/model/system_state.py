@@ -23,7 +23,6 @@ class SystemState(Enum):
     RUNELITE_LAUNCHER = auto()  # Launcher visible (waiting for game)
     RUNELITE_WELCOME = auto()  # Game loaded, "Existing User" button visible
     RUNELITE_LOGIN = auto()  # Username/password entry screen
-    RUNELITE_INVALID_CREDENTIALS = auto()  # Login failed, "Try again" button visible
     RUNELITE_CLICK_TO_PLAY = auto()  # Post-login, needs click to enter
     RUNELITE_LOGGED_IN = auto()  # Fully in-game (inventory visible)
     RUNELITE_UNKNOWN = auto()  # RuneLite open but state unclear
@@ -122,7 +121,6 @@ class SystemStateDetector:
                 LoginState.LOGGED_IN: SystemState.RUNELITE_LOGGED_IN,
                 LoginState.WELCOME_SCREEN: SystemState.RUNELITE_WELCOME,
                 LoginState.LOGIN_SCREEN: SystemState.RUNELITE_LOGIN,
-                LoginState.INVALID_CREDENTIALS: SystemState.RUNELITE_INVALID_CREDENTIALS,
                 LoginState.CLICK_TO_PLAY: SystemState.RUNELITE_CLICK_TO_PLAY,
                 LoginState.UNKNOWN: SystemState.RUNELITE_UNKNOWN,
             }
@@ -147,7 +145,6 @@ class SystemStateDetector:
             SystemState.RUNELITE_LAUNCHER: "RuneLite Launcher open, waiting for game to load",
             SystemState.RUNELITE_WELCOME: "On welcome screen (need to click 'Existing User')",
             SystemState.RUNELITE_LOGIN: "On login screen (enter credentials)",
-            SystemState.RUNELITE_INVALID_CREDENTIALS: "Invalid credentials (click 'Try again')",
             SystemState.RUNELITE_CLICK_TO_PLAY: "Login complete (click to play)",
             SystemState.RUNELITE_LOGGED_IN: "Fully logged in and ready",
             SystemState.RUNELITE_UNKNOWN: "RuneLite open but state unclear",
