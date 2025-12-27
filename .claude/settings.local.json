@@ -28,7 +28,22 @@
       "Bash(../venv/Scripts/python:*)",
       "Bash(./venv/Scripts/pytest tests/e2e/test_go_resilience.py -v --tb=short)",
       "Bash(./venv/Scripts/pytest tests/ -v --tb=short -q)",
-      "Bash(./venv/Scripts/pytest tests/e2e/test_go_resilience.py -v --tb=short -q)"
+      "Bash(./venv/Scripts/pytest tests/e2e/test_go_resilience.py -v --tb=short -q)",
+      "Bash(mkdir:*)",
+      "Bash(venv\\Scripts\\python.exe scripts/recorder.py:*)",
+      "Bash(.install-windows.bat)",
+      "Bash(py:*)",
+      "Bash(\"./venv-windows/Scripts/python.exe\" -c \"from utilities.machine_config import get_machine_config; config = get_machine_config(); print(f''Using profile: {config.profile_name}''); print(f''App dimensions: {config.get_app_dimensions()}'')\")",
+      "Bash(\"./venv-windows/Scripts/python.exe\" scripts/recorder.py --list-templates)",
+      "Bash(\"./venv-windows/Scripts/osbc.exe\" status)",
+      "Bash(\"./venv-windows/Scripts/osbc.exe\" --profile desktop status)",
+      "Bash(\"./venv-windows/Scripts/python.exe\" -m pytest tests/e2e/ -v)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(sync-preferences.bat status)",
+      "Bash(cmd.exe /c:*)",
+      "Bash(./sync-preferences.sh status:*)",
+      "Bash(echo $HOME)",
+      "Bash(./sync-preferences.sh:*)"
     ],
     "deny": [],
     "ask": []

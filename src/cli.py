@@ -15,6 +15,7 @@ Commands:
 """
 
 import argparse
+import os
 import sys
 
 
@@ -113,7 +114,18 @@ Examples:
   osbc gui                  Open bot selection GUI
   osbc login                Automate game login
   osbc status               Check window status
+  
+  # Machine profiles:
+  osbc --profile laptop start    Use laptop machine profile
+  OSBC_MACHINE_PROFILE=desktop osbc start    Use desktop profile
         """,
+    )
+    
+    # Add global options
+    parser.add_argument(
+        "--profile",
+        help="Machine profile to use (overrides auto-detection)",
+        dest="machine_profile",
     )
 
     subparsers = parser.add_subparsers(
@@ -167,6 +179,10 @@ def main():
     """Main entry point."""
     parser = create_parser()
     args = parser.parse_args()
+    
+    # Set machine profile if specified
+    if hasattr(args, 'machine_profile') and args.machine_profile:
+        os.environ['OSBC_MACHINE_PROFILE'] = args.machine_profile
 
     try:
         return args.func(args)

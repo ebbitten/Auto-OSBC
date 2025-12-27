@@ -1,0 +1,25 @@
+{
+    "workbench.colorTheme": "Material Theme Darker",
+    "workbench.iconTheme": "material-icon-theme",
+    "editor.inlineSuggest.enabled": true,
+    "[python]": {
+        "editor.formatOnType": true
+    },
+    "python.analysis.extraPaths": [
+        "/home/adam/VScodeProjects/Automation",
+        "~/VSCodeProjects/Automation/assets",
+        "~/VSCodeProjects/Automation/scripts",
+        "~/VSCodeProjects/Automation/ocr",
+        "~/VSCodeProjects/Automation/operating_system",
+        "${workspaceFolder}",
+        "${workspaceFolder}/src"
+    ],
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/src"
+    ],
+    "git.autofetch": true,
+    "github.copilot.editor.enableAutoCompletions": true,
+    "makefile.configureOnOpen": true,
+    "terminal.integrated.defaultProfile.linux": "zsh"
+}

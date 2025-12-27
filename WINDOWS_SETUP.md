@@ -134,3 +134,55 @@ Auto-OSBC/
 ```
 
 Both environments can coexist and share the same source code while having separate Python environments optimized for their respective platforms.
+
+## Multi-Machine Setup Notes (Desktop Implementation)
+
+### Current Status
+- **Multi-machine support implementation**: ✅ COMPLETE
+- **Machine profiles system**: ✅ Implemented in `machine_profiles/`
+- **Dynamic coordinate system**: ✅ Window class refactored
+- **CLI profile selection**: ✅ `osbc --profile <name>` support
+
+### Quick Setup for This Desktop
+Use the simplified installer that follows this setup guide:
+
+```cmd
+# Run the setup script (creates venv-windows as recommended)
+setup-windows.bat
+
+# Test the multi-machine system works
+venv-windows\Scripts\activate
+python -c "from utilities.machine_config import get_machine_config; print(f'Using profile: {get_machine_config().profile_name}')"
+```
+
+### Machine Configuration Files
+- `machine_profiles/default.json` - Base configuration with all hardcoded values extracted
+- `machine_profiles/desktop.json` - Desktop-specific overrides (if needed)  
+- `machine_profiles/laptop.json` - Laptop-specific overrides (if needed)
+- `.claude/settings.json` - Platform-agnostic Claude permissions (shared across machines)
+
+### Key Changes Made
+1. **MachineConfig class** (`src/utilities/machine_config.py`) - Loads profiles automatically
+2. **Window class updated** - All hardcoded coordinates now use machine config
+3. **RuneLiteBot updated** - Dynamic window sizing and padding
+4. **OSBC GUI updated** - Dynamic window dimensions  
+5. **CLI enhanced** - Profile selection via `--profile` flag
+
+### Testing Multi-Machine Features
+```cmd
+# Test different profiles
+set OSBC_MACHINE_PROFILE=laptop
+osbc status
+
+# Test with CLI flag
+osbc --profile desktop status
+
+# Test machine config loading
+python scripts/recorder.py --list-templates
+```
+
+### Benefits
+- No more hardcoded screen resolutions or coordinates
+- Seamless switching between desktop and laptop
+- Same codebase works on different display configurations
+- Profile settings are version controlled and shared

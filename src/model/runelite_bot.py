@@ -25,6 +25,7 @@ import utilities.runelite_cv as rcv
 from model.bot import Bot, BotStatus
 from utilities.geometry import Point, Rectangle, RuneLiteObject
 from utilities.window import Window
+from utilities.machine_config import get_machine_config
 
 
 class RuneLiteWindow(Window):
@@ -37,7 +38,10 @@ class RuneLiteWindow(Window):
         RuneLiteWindow is an extensions of the Window class, which allows for locating and interacting with key
         UI elements on screen.
         """
-        super().__init__(window_title, padding_top=26, padding_left=0)
+        # Get padding from machine configuration
+        config = get_machine_config()
+        padding_top, padding_left = config.get_window_padding()
+        super().__init__(window_title, padding_top=padding_top, padding_left=padding_left)
 
     # Override
     def initialize(self) -> bool:
@@ -47,11 +51,16 @@ class RuneLiteWindow(Window):
         if not super().initialize():
             return False
         self.__locate_hp_prayer_bars()
+        # Get current action coordinates from config
+        config = get_machine_config()
+        ca_config = config.get("ui_coordinates", "current_action", default={
+            "left": 10, "top": 25, "width": 128, "height": 20
+        })
         self.current_action = Rectangle(
-            left=10 + self.game_view.left,
-            top=25 + self.game_view.top,
-            width=128,
-            height=20,
+            left=ca_config["left"] + self.game_view.left,
+            top=ca_config["top"] + self.game_view.top,
+            width=ca_config["width"],
+            height=ca_config["height"],
         )
         return True
 
@@ -60,28 +69,44 @@ class RuneLiteWindow(Window):
         Creates Rectangles for the HP and Prayer bars on either side of the control panel, storing it in the
         class property.
         """
-        bar_w, bar_h = 18, 250  # dimensions of the bars
+        config = get_machine_config()
+        
+        # Get HP bar configuration
+        hp_config = config.get("ui_coordinates", "hp_bar", default={
+            "left": 7, "top": 42, "width": 18, "height": 250
+        })
         self.hp_bar = Rectangle(
-            left=self.control_panel.left + 7,
-            top=self.control_panel.top + 42,
-            width=bar_w,
-            height=bar_h,
+            left=self.control_panel.left + hp_config["left"],
+            top=self.control_panel.top + hp_config["top"],
+            width=hp_config["width"],
+            height=hp_config["height"],
         )
+        
+        # Get prayer bar configuration
+        prayer_config = config.get("ui_coordinates", "prayer_bar", default={
+            "left": 217, "top": 42, "width": 18, "height": 250
+        })
         self.prayer_bar = Rectangle(
-            left=self.control_panel.left + 217,
-            top=self.control_panel.top + 42,
-            width=bar_w,
-            height=bar_h,
+            left=self.control_panel.left + prayer_config["left"],
+            top=self.control_panel.top + prayer_config["top"],
+            width=prayer_config["width"],
+            height=prayer_config["height"],
         )
 
     # Override
-    def resize(self, width: int = 773, height: int = 534) -> None:
+    def resize(self, width: int = None, height: int = None) -> None:
         """
-        Resizes the client window. Default size is 773x534 (minsize of fixed layout).
+        Resizes the client window. Uses machine config defaults if not specified.
         Args:
             width: The width to resize the window to.
             height: The height to resize the window to.
         """
+        if width is None or height is None:
+            config = get_machine_config()
+            default_width, default_height = config.get_window_default_size()
+            width = width or default_width
+            height = height or default_height
+        
         if client := self.window:
             client.size = (width, height)
 

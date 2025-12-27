@@ -3,6 +3,7 @@ from typing import Dict, List
 import customtkinter
 
 from view.fonts.fonts import *
+from utilities.machine_config import get_machine_config
 
 
 class OptionsBuilder:
@@ -89,12 +90,15 @@ class TextEditInfo:
 
 
 class OptionsUI(customtkinter.CTkScrollableFrame):
-    WIDTH = 500
-    HEIGHT = 400
+    def __init_dimensions(self):
+        """Initialize UI dimensions from machine config."""
+        config = get_machine_config()
+        self.WIDTH, self.HEIGHT = config.get_options_ui_dimensions()
 
     def __init__(self, parent, title: str, option_info: dict, controller):
         # sourcery skip: raise-specific-error
         super().__init__(parent)
+        self.__init_dimensions()
 
         parent.geometry(f"{self.WIDTH}x{self.HEIGHT}")
 

@@ -18,18 +18,23 @@ from model import Bot, RuneLiteBot
 from utilities.game_launcher import Launchable
 from view import *
 from view.fonts.fonts import *
+from utilities.machine_config import get_machine_config
 
 customtkinter.set_appearance_mode("Dark")  # Modes: "System" (standard), "Dark", "Light"
 customtkinter.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
 
 
 class App(customtkinter.CTk):
-    WIDTH = 680
-    HEIGHT = 480
     DEFAULT_GRAY = ("gray50", "gray30")
+    
+    def __init_dimensions(self):
+        """Initialize window dimensions from machine config."""
+        config = get_machine_config()
+        self.WIDTH, self.HEIGHT = config.get_app_dimensions()
 
     def __init__(self, test: bool = False):
         super().__init__()
+        self.__init_dimensions()
         self.__init_settings()
         if not test:
             ui_images_path = pathlib.Path(__file__).parent.resolve().joinpath("images", "ui")
@@ -45,7 +50,7 @@ class App(customtkinter.CTk):
 
     def build_ui(self):  # sourcery skip: merge-list-append, move-assign-in-block
         self.title("OS Bot COLOR")
-        self.geometry(f"{App.WIDTH}x{App.HEIGHT}")
+        self.geometry(f"{self.WIDTH}x{self.HEIGHT}")
         self.update()
         self.minsize(self.winfo_width(), self.winfo_height())
 
@@ -101,6 +106,7 @@ class App(customtkinter.CTk):
         self.label_1.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
         # Create Scrollable Frame
+        # Scrollable frame width could be made configurable if needed
         self.scrollable_frame_left = customtkinter.CTkScrollableFrame(master=self.frame_left, width=160, fg_color="#2b2b2b", scrollbar_button_color="#333333")
         self.scrollable_frame_left.grid(row=2, column=0, sticky="nsew", padx=5, pady=5)
 

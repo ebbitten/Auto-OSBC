@@ -1,0 +1,31 @@
+{
+  "machine_name": "laptop",
+  "description": "Laptop machine - adjust resolution and scaling as needed",
+  "display": {
+    "primary_resolution": [1366, 768],
+    "dpi_scale": 1.25,
+    "runelite_window": {
+      "default_size": [773, 534],
+      "padding": {
+        "top": 26,
+        "left": 0
+      }
+    }
+  },
+  "app": {
+    "width": 680,
+    "height": 480
+  },
+  "options_ui": {
+    "width": 500,
+    "height": 400
+  },
+  "ui_coordinates": {
+    "comment": "Inherits from default.json - only override values that differ",
+    "fixed_mode": {},
+    "resizable_mode": {}
+  },
+  "paths": {
+    "runelite_profiles": "~/.runelite/profiles2"
+  }
+}

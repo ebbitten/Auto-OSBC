@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "permissions": {
+    "tool_use": {
+      "patterns": [
+        {
+          "pattern": "^python\\s+scripts/.*",
+          "description": "Python scripts in scripts directory",
+          "allow": true
+        },
+        {
+          "pattern": "^python\\s+tests/.*",
+          "description": "Python test files",
+          "allow": true
+        },
+        {
+          "pattern": "^\\./venv/Scripts/python(\\.exe)?\\s+.*",
+          "description": "Venv Python on Windows",
+          "allow": true
+        },
+        {
+          "pattern": "^\\./venv/bin/python\\s+.*",
+          "description": "Venv Python on Unix",
+          "allow": true
+        },
+        {
+          "pattern": "^venv[/\\\\]Scripts[/\\\\]python(\\.exe)?\\s+.*",
+          "description": "Venv Python Windows alternate syntax",
+          "allow": true
+        },
+        {
+          "pattern": "^venv/bin/python\\s+.*",
+          "description": "Venv Python Unix alternate syntax",
+          "allow": true
+        },
+        {
+          "pattern": "^\\./venv/Scripts/pytest(\\.exe)?\\s+.*",
+          "description": "Pytest via venv on Windows",
+          "allow": true
+        },
+        {
+          "pattern": "^\\./venv/bin/pytest\\s+.*",
+          "description": "Pytest via venv on Unix",
+          "allow": true
+        },
+        {
+          "pattern": "^pytest\\s+.*",
+          "description": "Pytest direct execution",
+          "allow": true
+        },
+        {
+          "pattern": "^osbc\\s+.*",
+          "description": "OSBC CLI commands",
+          "allow": true
+        },
+        {
+          "pattern": "^git\\s+(status|log|diff|branch|show|ls-files|rev-parse|remote|describe|tag\\s+-l).*",
+          "description": "Read-only git commands",
+          "allow": true
+        },
+        {
+          "pattern": "^(ls|dir|cat|head|tail|grep|find|pwd|echo|type|more|less)\\s+.*",
+          "description": "Basic file operations",
+          "allow": true
+        },
+        {
+          "pattern": "^cd\\s+.*",
+          "description": "Directory navigation",
+          "allow": true
+        },
+        {
+          "pattern": "^pip\\s+list.*",
+          "description": "List installed packages",
+          "allow": true
+        },
+        {
+          "pattern": "^pip\\s+show\\s+.*",
+          "description": "Show package info",
+          "allow": true
+        },
+        {
+          "pattern": "^mypy\\s+.*",
+          "description": "Type checking with mypy",
+          "allow": true
+        },
+        {
+          "pattern": "^flake8\\s+.*",
+          "description": "Linting with flake8",
+          "allow": true
+        },
+        {
+          "pattern": "^black\\s+--check\\s+.*",
+          "description": "Black formatting check (dry run)",
+          "allow": true
+        }
+      ]
+    },
+    "file_operations": {
+      "allowed_directories": [
+        ".",
+        "src",
+        "tests",
+        "docs",
+        "scripts",
+        "machine_profiles",
+        "captures",
+        "debug_screenshots"
+      ],
+      "blocked_patterns": [
+        "**/node_modules/**",
+        "**/.git/objects/**",
+        "**/venv/**",
+        "**/__pycache__/**"
+      ]
+    }
+  },
+  "notes": [
+    "This is a shared permissions file for the Auto-OSBC project.",
+    "It uses platform-agnostic patterns to work on both Windows and Unix systems.",
+    "Human approval is still required for:",
+    "  - git add, commit, push, checkout, merge, rebase",
+    "  - pip install, uninstall, upgrade",
+    "  - Any file modifications outside allowed directories",
+    "  - System commands not explicitly allowed"
+  ]
+}

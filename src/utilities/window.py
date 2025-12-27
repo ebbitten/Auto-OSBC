@@ -16,6 +16,7 @@ from deprecated import deprecated
 import utilities.debug as debug
 import utilities.imagesearch as imsearch
 from utilities.geometry import Point, Rectangle
+from utilities.machine_config import get_machine_config
 
 
 class WindowInitializationError(Exception):
@@ -151,9 +152,24 @@ class Window:
             # Locate chat tabs
             self.chat_tabs = []
             x, y = 5, 143
-            for _ in range(7):
-                self.chat_tabs.append(Rectangle(left=x + chat.left, top=y + chat.top, width=52, height=19))
-                x += 62  # btn width is 52px, gap between each is 10px
+            # Get chat tabs configuration from machine profile
+            config = get_machine_config()
+            chat_tabs_config = config.get_chat_tabs_config()
+            
+            if self.client_fixed and "fixed_mode" in chat_tabs_config and "positions" in chat_tabs_config["fixed_mode"]:
+                # Use configured positions
+                for pos in chat_tabs_config["fixed_mode"]["positions"]:
+                    self.chat_tabs.append(Rectangle(
+                        left=pos["x"] + chat.left,
+                        top=pos["y"] + chat.top,
+                        width=pos["width"],
+                        height=pos["height"]
+                    ))
+            else:
+                # Fallback to original logic
+                for _ in range(7):
+                    self.chat_tabs.append(Rectangle(left=x + chat.left, top=y + chat.top, width=52, height=19))
+                    x += 62  # btn width is 52px, gap between each is 10px
             self.chat = chat
             return True
         print("Window.__locate_chat(): Failed to find chatbox.")
@@ -182,27 +198,52 @@ class Window:
         Creates Rectangles for each interface tab (inventory, prayer, etc.) relative to the control panel, storing it in the class property.
         """
         self.cp_tabs = []
-        slot_w, slot_h = 29, 26  # top row tab dimensions
-        gap = 4  # 4px gap between tabs
-        y = 4  # 4px from top for first row
-        for _ in range(2):
-            x = 8 + cp.left
-            for _ in range(7):
-                self.cp_tabs.append(Rectangle(left=x, top=y + cp.top, width=slot_w, height=slot_h))
-                x += slot_w + gap
-            y = 303  # 303px from top for second row
-            slot_h = 28  # slightly taller tab Rectangles for second row
+        config = get_machine_config()
+        cp_tabs_config = config.get_control_panel_tabs_config()
+        
+        # Use configuration if available
+        if "rows" in cp_tabs_config:
+            for row in cp_tabs_config["rows"]:
+                for x_pos in row["positions"]:
+                    self.cp_tabs.append(Rectangle(
+                        left=x_pos + cp.left,
+                        top=row["y"] + cp.top,
+                        width=row["tab_width"],
+                        height=row["height"]
+                    ))
+        else:
+            # Fallback to original logic
+            slot_w, slot_h = 29, 26  # top row tab dimensions
+            gap = 4  # 4px gap between tabs
+            y = 4  # 4px from top for first row
+            for _ in range(2):
+                x = 8 + cp.left
+                for _ in range(7):
+                    self.cp_tabs.append(Rectangle(left=x, top=y + cp.top, width=slot_w, height=slot_h))
+                    x += slot_w + gap
+                y = 303  # 303px from top for second row
+                slot_h = 28  # slightly taller tab Rectangles for second row
 
     def __locate_inv_slots(self, cp: Rectangle) -> None:
         """
         Creates Rectangles for each inventory slot relative to the control panel, storing it in the class property.
         """
         self.inventory_slots = []
-        slot_w, slot_h = 36, 32  # dimensions of a slot
-        gap_x, gap_y = 6, 4  # pixel gap between slots
-        y = 44 + cp.top  # start y relative to cp template
+        
+        # Get inventory configuration from machine profile
+        config = get_machine_config()
+        inv_config = config.get_inventory_config()
+        
+        slot_w = inv_config.get("slot_width", 36) - 5  # Subtract 5 for actual clickable area
+        slot_h = inv_config.get("slot_height", 32) - 1  # Subtract 1 for actual clickable area
+        gap_x = inv_config.get("gap_x", 6)
+        gap_y = inv_config.get("gap_y", 4)
+        start_x = inv_config.get("start_x", 40)
+        start_y = inv_config.get("start_y", 44)
+        
+        y = start_y + cp.top
         for _ in range(7):
-            x = 40 + cp.left  # start x relative to cp template
+            x = start_x + cp.left
             for _ in range(4):
                 self.inventory_slots.append(Rectangle(left=x, top=y, width=slot_w, height=slot_h))
                 x += slot_w + gap_x
@@ -213,12 +254,24 @@ class Window:
         Creates Rectangles for each prayer in the prayer book menu relative to the control panel, storing it in the class property.
         """
         self.prayers = []
-        slot_w, slot_h = 34, 34  # dimensions of the prayers
-        gap_x, gap_y = 3, 3  # pixel gap between prayers
-        y = 46 + cp.top  # start y relative to cp template
-        for _ in range(6):
-            x = 30 + cp.left  # start x relative to cp template
-            for _ in range(5):
+        
+        # Get prayers configuration from machine profile
+        config = get_machine_config()
+        prayer_config = config.get_prayers_config()
+        
+        slot_w = prayer_config.get("prayer_width", 33) + 1  # Add 1 to match original behavior
+        slot_h = prayer_config.get("prayer_height", 33) + 1  # Add 1 to match original behavior
+        gap_x = prayer_config.get("gap_x", 3)
+        gap_y = prayer_config.get("gap_y", 3)
+        start_x = prayer_config.get("start_x", 30)
+        start_y = prayer_config.get("start_y", 46)
+        rows = prayer_config.get("grid_rows", 6)
+        cols = prayer_config.get("grid_cols", 5)
+        
+        y = start_y + cp.top
+        for _ in range(rows):
+            x = start_x + cp.left
+            for _ in range(cols):
                 self.prayers.append(Rectangle(left=x, top=y, width=slot_w, height=slot_h))
                 x += slot_w + gap_x
             y += slot_h + gap_y
@@ -230,12 +283,24 @@ class Window:
         Currently only populates the normal spellbook spells.
         """
         self.spellbook_normal = []
-        slot_w, slot_h = 22, 22  # dimensions of a spell
-        gap_x, gap_y = 4, 2  # pixel gap between spells
-        y = 37 + cp.top  # start y relative to cp template
-        for _ in range(10):
-            x = 30 + cp.left  # start x relative to cp template
-            for _ in range(7):
+        
+        # Get spellbook configuration from machine profile
+        config = get_machine_config()
+        spell_config = config.get_spellbook_config()
+        
+        slot_w = spell_config.get("spell_width", 23) - 1  # Subtract 1 to match original behavior
+        slot_h = spell_config.get("spell_height", 23) - 1  # Subtract 1 to match original behavior
+        gap_x = spell_config.get("gap_x", 4)
+        gap_y = spell_config.get("gap_y", 2)
+        start_x = spell_config.get("start_x", 30)
+        start_y = spell_config.get("start_y", 37)
+        rows = spell_config.get("grid_rows", 10)
+        cols = spell_config.get("grid_cols", 7)
+        
+        y = start_y + cp.top
+        for _ in range(rows):
+            x = start_x + cp.left
+            for _ in range(cols):
                 self.spellbook_normal.append(Rectangle(left=x, top=y, width=slot_w, height=slot_h))
                 x += slot_w + gap_x
             y += slot_h + gap_y
@@ -253,7 +318,14 @@ class Window:
             return False
         if self.client_fixed:
             # Uses the chatbox and known fixed size of game_view to locate it in fixed mode
-            self.game_view = Rectangle(left=self.chat.left, top=self.chat.top - 337, width=517, height=337)
+            config = get_machine_config()
+            game_view_config = config.get_ui_coordinates("fixed_mode", "game_view") or {"width": 517, "height": 337}
+            self.game_view = Rectangle(
+                left=self.chat.left,
+                top=self.chat.top - game_view_config["height"],
+                width=game_view_config["width"],
+                height=game_view_config["height"]
+            )
         else:
             # Uses control panel to find right-side bounds of game view in resizable mode
             self.game_view = Rectangle.from_points(
@@ -277,7 +349,14 @@ class Window:
             control_panel["top"] -= self.game_view.top
 
             self.game_view.subtract_list = [minimap, chat, control_panel]
-        self.mouseover = Rectangle(left=self.game_view.left, top=self.game_view.top, width=407, height=26)
+        config = get_machine_config()
+        mouseover_config = config.get("ui_coordinates", "mouseover", default={"width": 407, "height": 26})
+        self.mouseover = Rectangle(
+            left=self.game_view.left,
+            top=self.game_view.top,
+            width=mouseover_config["width"],
+            height=mouseover_config["height"]
+        )
         return True
 
     def __locate_minimap(self, client_rect: Rectangle) -> bool:
@@ -289,30 +368,75 @@ class Window:
             True if successful, False otherwise.
         """
         # 'm' refers to minimap area
+        config = get_machine_config()
+        
         if m := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("ui_templates", "minimap.png"), client_rect):
             self.client_fixed = False
-            self.compass_orb = Rectangle(left=40 + m.left, top=7 + m.top, width=24, height=26)
-            self.hp_orb_text = Rectangle(left=4 + m.left, top=60 + m.top, width=20, height=13)
-            self.minimap = Rectangle(left=52 + m.left, top=5 + m.top, width=154, height=155)
-            self.prayer_orb = Rectangle(left=30 + m.left, top=86 + m.top, width=20, height=20)
-            self.prayer_orb_text = Rectangle(left=4 + m.left, top=94 + m.top, width=20, height=13)
-            self.run_orb = Rectangle(left=39 + m.left, top=118 + m.top, width=20, height=20)
-            self.run_orb_text = Rectangle(left=14 + m.left, top=126 + m.top, width=20, height=13)
-            self.spec_orb = Rectangle(left=62 + m.left, top=144 + m.top, width=18, height=20)
-            self.spec_orb_text = Rectangle(left=36 + m.left, top=151 + m.top, width=20, height=13)
-            self.total_xp = Rectangle(left=m.left - 147, top=m.top + 4, width=104, height=21)
+            mode = "resizable_mode"
         elif m := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("ui_templates", "minimap_fixed.png"), client_rect):
             self.client_fixed = True
-            self.compass_orb = Rectangle(left=31 + m.left, top=7 + m.top, width=24, height=25)
-            self.hp_orb_text = Rectangle(left=4 + m.left, top=55 + m.top, width=20, height=13)
-            self.minimap = Rectangle(left=52 + m.left, top=4 + m.top, width=147, height=160)
-            self.prayer_orb = Rectangle(left=30 + m.left, top=80 + m.top, width=19, height=20)
-            self.prayer_orb_text = Rectangle(left=4 + m.left, top=89 + m.top, width=20, height=13)
-            self.run_orb = Rectangle(left=40 + m.left, top=112 + m.top, width=19, height=20)
-            self.run_orb_text = Rectangle(left=14 + m.left, top=121 + m.top, width=20, height=13)
-            self.spec_orb = Rectangle(left=62 + m.left, top=137 + m.top, width=19, height=20)
-            self.spec_orb_text = Rectangle(left=36 + m.left, top=146 + m.top, width=20, height=13)
-            self.total_xp = Rectangle(left=m.left - 104, top=m.top + 6, width=104, height=21)
+            mode = "fixed_mode"
+        else:
+            m = None
+        
+        if m:
+            # Helper function to get coordinates with defaults
+            def get_coords(element_name: str, defaults: dict):
+                coords = config.get_ui_coordinates(mode, element_name)
+                if coords:
+                    return Rectangle(
+                        left=coords.get("left", defaults["left"]) + m.left,
+                        top=coords.get("top", defaults["top"]) + m.top,
+                        width=coords.get("width", defaults["width"]),
+                        height=coords.get("height", defaults["height"])
+                    )
+                else:
+                    return Rectangle(
+                        left=defaults["left"] + m.left,
+                        top=defaults["top"] + m.top,
+                        width=defaults["width"],
+                        height=defaults["height"]
+                    )
+            
+            # Define defaults based on mode
+            if self.client_fixed:
+                defaults_map = {
+                    "compass_orb": {"left": 31, "top": 7, "width": 24, "height": 25},
+                    "hp_orb_text": {"left": 4, "top": 55, "width": 20, "height": 13},
+                    "minimap": {"left": 52, "top": 4, "width": 147, "height": 160},
+                    "prayer_orb": {"left": 30, "top": 80, "width": 19, "height": 20},
+                    "prayer_orb_text": {"left": 4, "top": 89, "width": 20, "height": 13},
+                    "run_orb": {"left": 40, "top": 112, "width": 19, "height": 20},
+                    "run_orb_text": {"left": 14, "top": 121, "width": 20, "height": 13},
+                    "spec_orb": {"left": 62, "top": 137, "width": 19, "height": 20},
+                    "spec_orb_text": {"left": 36, "top": 146, "width": 20, "height": 13},
+                    "total_xp": {"left": -104, "top": 6, "width": 104, "height": 21}
+                }
+            else:
+                defaults_map = {
+                    "compass_orb": {"left": 40, "top": 7, "width": 24, "height": 26},
+                    "hp_orb_text": {"left": 4, "top": 60, "width": 20, "height": 13},
+                    "minimap": {"left": 52, "top": 5, "width": 154, "height": 155},
+                    "prayer_orb": {"left": 30, "top": 86, "width": 20, "height": 20},
+                    "prayer_orb_text": {"left": 4, "top": 94, "width": 20, "height": 13},
+                    "run_orb": {"left": 39, "top": 118, "width": 20, "height": 20},
+                    "run_orb_text": {"left": 14, "top": 126, "width": 20, "height": 13},
+                    "spec_orb": {"left": 62, "top": 144, "width": 18, "height": 20},
+                    "spec_orb_text": {"left": 36, "top": 151, "width": 20, "height": 13},
+                    "total_xp": {"left": -147, "top": 4, "width": 104, "height": 21}
+                }
+            
+            # Create rectangles from configuration
+            self.compass_orb = get_coords("compass_orb", defaults_map["compass_orb"])
+            self.hp_orb_text = get_coords("hp_orb_text", defaults_map["hp_orb_text"])
+            self.minimap = get_coords("minimap", defaults_map["minimap"])
+            self.prayer_orb = get_coords("prayer_orb", defaults_map["prayer_orb"])
+            self.prayer_orb_text = get_coords("prayer_orb_text", defaults_map["prayer_orb_text"])
+            self.run_orb = get_coords("run_orb", defaults_map["run_orb"])
+            self.run_orb_text = get_coords("run_orb_text", defaults_map["run_orb_text"])
+            self.spec_orb = get_coords("spec_orb", defaults_map["spec_orb"])
+            self.spec_orb_text = get_coords("spec_orb_text", defaults_map["spec_orb_text"])
+            self.total_xp = get_coords("total_xp", defaults_map["total_xp"])
         if m:
             # Take a bite out of the bottom-left corner of the minimap to exclude orb's green numbers
             self.minimap.subtract_list = [{"left": 0, "top": self.minimap.height - 20, "width": 20, "height": 20}]
