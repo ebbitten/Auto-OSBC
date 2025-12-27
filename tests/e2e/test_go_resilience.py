@@ -249,6 +249,7 @@ class TestInvalidCredentialsRecovery:
     """Tests for invalid credentials handling."""
 
     @pytest.mark.e2e
+    @pytest.mark.skip(reason="INVALID_CREDENTIALS state removed in refactoring")
     def test_clicks_try_again_on_invalid_creds(self, require_runelite):
         """Should click 'Try again' when credentials fail."""
         from model.login.login_screen import LoginScreenDetector, LoginState
@@ -262,6 +263,7 @@ class TestInvalidCredentialsRecovery:
             assert button is not None, "Should find Try Again button"
 
     @pytest.mark.e2e
+    @pytest.mark.skip(reason="INVALID_CREDENTIALS state removed in refactoring")
     def test_only_retries_once(self, require_runelite):
         """Should only retry invalid credentials once, then fail."""
         # This test would require invalid credentials to be configured

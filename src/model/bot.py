@@ -20,6 +20,7 @@ from deprecated import deprecated
 import utilities.color as clr
 import utilities.debug as debug
 import utilities.imagesearch as imsearch
+from utilities.imagesearch import CONFIDENCE_LOOSE
 import utilities.ocr as ocr
 import utilities.random_util as rd
 from utilities.geometry import Point, Rectangle
@@ -738,12 +739,12 @@ class Bot(ABC):
         # Player is idle if no action text is present
         return action_text.strip() == ""
 
-    def find_item_in_inventory_visual(self, item_template_path: str, confidence: float = 0.8) -> List[int]:
+    def find_item_in_inventory_visual(self, item_template_path: str, confidence: float = CONFIDENCE_LOOSE) -> List[int]:
         """
         Find item in inventory using template matching.
         Args:
             item_template_path: Path to the item template image
-            confidence: Matching confidence threshold (0.0-1.0)
+            confidence: Matching confidence threshold (0=perfect match, see imagesearch constants)
         Returns: List of slot indices (0-27) where the item was found
         """
         found_slots = []

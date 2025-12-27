@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Optional
 import cv2
 import numpy as np
 
+from utilities.imagesearch import CONFIDENCE_LOOSE
+
 if TYPE_CHECKING:
     from utilities.geometry import Rectangle
     from utilities.window import Window
@@ -107,14 +109,47 @@ class LoginScreenDetector:
         self._cached_screenshot = None
         self._cached_win_rect = None
 
+    def _get_center_region(self, margin_percent: float = 0.2) -> tuple[int, int, int, int]:
+        """Get the center region of the window, excluding edges.
+
+        Login buttons are always in the center of the screen, not in the
+        inventory area (right side) or chat area (bottom). This prevents
+        false positives from template matching against game UI elements.
+
+        Args:
+            margin_percent: Percentage of screen to exclude from each edge.
+                           0.2 = exclude 20% from each side = center 60%.
+
+        Returns:
+            Tuple of (x_offset, y_offset, width, height) relative to screenshot.
+        """
+        screenshot, win_rect = self._get_screenshot()
+        full_width = screenshot.shape[1]
+        full_height = screenshot.shape[0]
+
+        x_margin = int(full_width * margin_percent)
+        y_margin = int(full_height * margin_percent)
+
+        return (
+            x_margin,
+            y_margin,
+            full_width - (2 * x_margin),
+            full_height - (2 * y_margin),
+        )
+
     def _search_template(
-        self, template_path: Path, confidence: float = 0.8
+        self,
+        template_path: Path,
+        confidence: float = CONFIDENCE_LOOSE,
+        use_center_region: bool = False,
     ) -> Optional["Rectangle"]:
         """Search for a template using cached screenshot.
 
         Args:
             template_path: Path to the template image.
             confidence: Match confidence threshold.
+            use_center_region: If True, only search center 60% of screen.
+                              Prevents false positives in inventory/chat areas.
 
         Returns:
             Rectangle of the found template, or None.
@@ -128,17 +163,26 @@ class LoginScreenDetector:
 
             screenshot, win_rect = self._get_screenshot()
 
-            # Search in cached screenshot (returns coords relative to screenshot)
+            # Optionally constrain search to center region
+            x_offset, y_offset = 0, 0
+            if use_center_region:
+                x_offset, y_offset, region_w, region_h = self._get_center_region()
+                screenshot = screenshot[
+                    y_offset : y_offset + region_h,
+                    x_offset : x_offset + region_w,
+                ]
+
+            # Search in (possibly cropped) screenshot
             result = imsearch.search_img_in_rect(
                 str(template_path),
-                screenshot,  # Pass numpy array instead of Rectangle
+                screenshot,
                 confidence=confidence,
             )
 
             # Adjust coordinates to be relative to screen
             if result is not None:
-                result.left += win_rect.left
-                result.top += win_rect.top
+                result.left += win_rect.left + x_offset
+                result.top += win_rect.top + y_offset
 
             return result
         except Exception:
@@ -345,7 +389,10 @@ class LoginScreenDetector:
         Returns:
             True if on login screen, False otherwise
         """
-        return self._search_template(LOGIN_IMAGES_PATH / "cancel_button.png") is not None
+        return self._search_template(
+            LOGIN_IMAGES_PATH / "cancel_button.png",
+            use_center_region=True,
+        ) is not None
 
     def _is_welcome_screen(self) -> bool:
         """Check if we're on the welcome screen.
@@ -367,15 +414,19 @@ class LoginScreenDetector:
             This eliminates the need to search for the button again.
         """
         try:
-            # Check for Existing User button
+            # Check for Existing User button (center region only - not in inventory)
             existing_user = self._search_template(
-                LOGIN_IMAGES_PATH / "existing_user_button.png"
+                LOGIN_IMAGES_PATH / "existing_user_button.png",
+                use_center_region=True,
             )
             if not existing_user:
                 return None
 
             # Also verify "New User" button is present (both must exist on welcome)
-            new_user = self._search_template(LOGIN_IMAGES_PATH / "new_user_button.png")
+            new_user = self._search_template(
+                LOGIN_IMAGES_PATH / "new_user_button.png",
+                use_center_region=True,
+            )
             if not new_user:
                 return None
 
@@ -392,23 +443,29 @@ class LoginScreenDetector:
     def get_existing_user_button_location(self) -> Optional["Rectangle"]:
         """Find the 'Existing User' button on the welcome screen.
 
-        Uses template matching to find the button.
+        Uses template matching to find the button in center region only.
 
         Returns:
             Rectangle of the button, or None if not found
         """
-        return self._search_template(LOGIN_IMAGES_PATH / "existing_user_button.png")
+        return self._search_template(
+            LOGIN_IMAGES_PATH / "existing_user_button.png",
+            use_center_region=True,
+        )
 
     def get_click_to_play_button_location(self) -> Optional["Rectangle"]:
         """Find the 'Click here to Play' button after login.
 
         Uses template matching to find the play button that appears
-        after successful credential entry.
+        after successful credential entry (center region only).
 
         Returns:
             Rectangle of the button, or None if not found
         """
-        return self._search_template(LOGIN_IMAGES_PATH / "click_to_play.png")
+        return self._search_template(
+            LOGIN_IMAGES_PATH / "click_to_play.png",
+            use_center_region=True,
+        )
 
     def get_error_message(self) -> Optional[str]:
         """Extract any error message from the login screen.
@@ -424,10 +481,15 @@ class LoginScreenDetector:
 
     def _find_login_button_template(self) -> Optional["Rectangle"]:
         """Find login button using template matching."""
-        # Use higher confidence (0.9) to avoid false matches
+        # Use looser threshold (0.9) to handle button variations
+        # Note: 0.9 is MORE permissive than CONFIDENCE_LOOSE (0.8)
+        # False positives are prevented by:
+        #   1. Center region constraint (not in inventory)
+        #   2. _is_login_screen() cancel button check
         return self._search_template(
             LOGIN_IMAGES_PATH / "login_button.png",
             confidence=0.9,
+            use_center_region=True,
         )
 
     def _find_welcome_screen_template(self) -> Optional["Rectangle"]:
@@ -435,14 +497,21 @@ class LoginScreenDetector:
 
         Looks for either the 'Existing User' button or 'Welcome to RuneScape' text.
         These indicate we're on the initial login screen before entering credentials.
+        Uses center region to avoid false positives in inventory area.
         """
-        # Try to find "Existing User" button
-        result = self._search_template(LOGIN_IMAGES_PATH / "existing_user_button.png")
+        # Try to find "Existing User" button (center region only)
+        result = self._search_template(
+            LOGIN_IMAGES_PATH / "existing_user_button.png",
+            use_center_region=True,
+        )
         if result:
             return result
 
-        # Try to find "Welcome to RuneScape" text
-        return self._search_template(LOGIN_IMAGES_PATH / "welcome_to_runescape.png")
+        # Try to find "Welcome to RuneScape" text (center region only)
+        return self._search_template(
+            LOGIN_IMAGES_PATH / "welcome_to_runescape.png",
+            use_center_region=True,
+        )
 
     def _detect_login_screen_ocr(self) -> bool:
         """Detect login screen using OCR.

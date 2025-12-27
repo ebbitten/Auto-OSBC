@@ -188,14 +188,15 @@ See backlog for systemic fixes:
 
 ### Completed
 - [x] Create `click_to_play.png` template
+- [x] **TICKET-1: Visual Test Fixtures** - Created `tests/fixtures/login_states/` with WELCOME, LOGIN, LOGGED_IN screenshots
+- [x] **TICKET-5: Integration Tests with Real Screenshots** - Created `tests/integration/test_login_detection_visual.py` (8 tests)
+- [x] **TICKET-2: Standardize Confidence Thresholds** - Added CONFIDENCE_STRICT/MODERATE/LOOSE constants to `imagesearch.py`, updated `login_screen.py` and `bot.py`
+- [x] **TICKET-3: Region Constraints for Login Detection** - Added `use_center_region` parameter to `_search_template()`, all login buttons now search center 60% only
 
 ### High Priority (from 5 Whys analysis)
-- [ ] **TICKET-1: Visual Test Fixtures** - Create screenshot fixtures for each login state (WELCOME, LOGIN, CLICK_TO_PLAY, LOGGED_IN) and add tests that run detection against real screenshots
-- [ ] **TICKET-5: Integration Tests with Real Screenshots** - Replace mock-only tests with screenshot-based tests for login detection
+(None remaining)
 
 ### Medium Priority
-- [ ] **TICKET-2: Standardize Confidence Thresholds** - Audit all confidence values, document usage, create constants (STRICT=0.15, MODERATE=0.3, LOOSE=0.8)
-- [ ] **TICKET-3: Region Constraints for Login Detection** - Limit button search to center 60% of screen (not inventory area)
 - [ ] Improve template uniqueness (capture more distinct regions)
 - [ ] Profile and optimize Window.initialize() (still ~280ms)
 

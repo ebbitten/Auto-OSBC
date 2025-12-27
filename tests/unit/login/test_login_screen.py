@@ -156,12 +156,14 @@ class TestLoginScreenDetector:
         """detect_state returns LOGIN_SCREEN when on login screen."""
         detector = LoginScreenDetector(mock_window)
 
-        with patch.object(detector, "_check_welcome_screen", return_value=None):
-            with patch.object(detector, "_find_login_button_template") as mock_find:
-                mock_find.return_value = MagicMock()
-                with patch.object(detector, "_is_login_screen", return_value=True):
-                    info = detector.detect_state()
-                    assert info.state == LoginState.LOGIN_SCREEN
+        # Must mock is_logged_in first since detect_state checks it before login screen
+        with patch.object(detector, "is_logged_in", return_value=False):
+            with patch.object(detector, "_check_welcome_screen", return_value=None):
+                with patch.object(detector, "_find_login_button_template") as mock_find:
+                    mock_find.return_value = MagicMock()
+                    with patch.object(detector, "_is_login_screen", return_value=True):
+                        info = detector.detect_state()
+                        assert info.state == LoginState.LOGIN_SCREEN
 
     def test_detect_state_returns_unknown_when_nothing_detected(self, mock_window):
         """detect_state returns UNKNOWN when state cannot be determined."""

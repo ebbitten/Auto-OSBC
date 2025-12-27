@@ -83,12 +83,22 @@ def prepare_click_game_dropdown() -> ActionOutcome:
     if not osbc_window:
         return ActionOutcome.fail("OSBC window not found")
 
-    # Bring to foreground
+    # Restore if minimized, then bring to foreground
     try:
+        if osbc_window.isMinimized:
+            osbc_window.restore()
+            time.sleep(0.5)  # Give time for window to restore
         osbc_window.activate()
         time.sleep(0.3)
     except Exception:
         pass
+
+    # Verify window is now in a valid position (not minimized at -32000, -32000)
+    if osbc_window.left < -1000 or osbc_window.top < -1000:
+        return ActionOutcome.fail(
+            f"OSBC window is in invalid position ({osbc_window.left}, {osbc_window.top}). "
+            "Please restore the window manually."
+        )
 
     dropdown_point = find_game_dropdown(osbc_window)
 

@@ -6,6 +6,29 @@ import numpy as np
 
 from utilities.geometry import Point, Rectangle
 
+# --- Confidence Thresholds for Template Matching ---
+# Uses TM_SQDIFF_NORMED: lower values = stricter matching (0 = perfect match)
+#
+# CONFIDENCE_STRICT (0.15): Very strict matching. Use for:
+#   - Unique UI elements with distinctive patterns
+#   - High-stakes detection where false positives are costly
+#   - Elements that rarely change appearance
+#
+# CONFIDENCE_MODERATE (0.3): Balanced matching. Use for:
+#   - General UI buttons and icons
+#   - Elements with minor variations (themes, lighting)
+#   - Most production detection scenarios
+#
+# CONFIDENCE_LOOSE (0.8): Permissive matching. Use for:
+#   - Login/welcome screens with varying backgrounds
+#   - Elements that may be partially obscured
+#   - Initial detection passes (with follow-up validation)
+#   - WARNING: Higher risk of false positives, use with structural validation
+#
+CONFIDENCE_STRICT = 0.15
+CONFIDENCE_MODERATE = 0.3
+CONFIDENCE_LOOSE = 0.8
+
 # --- Paths to Image folders ---
 __PATH = Path(__file__).parent.parent
 IMAGES = __PATH.joinpath("images")
