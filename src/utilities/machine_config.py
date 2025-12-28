@@ -73,8 +73,8 @@ class MachineConfig:
         
         # Add your machine hostname mappings here
         hostname_map = {
-            # Example: "adams-desktop": "desktop",
-            # Example: "adams-laptop": "laptop",
+            "adamhblade": "laptop",  # Laptop machine
+            # Add desktop hostname when known (probably "desktop-agh04lj")
         }
         
         if hostname in hostname_map:

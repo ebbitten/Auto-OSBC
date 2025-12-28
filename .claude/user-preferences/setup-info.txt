@@ -1,8 +1,8 @@
 Claude Code Setup Information
-Export Date: Sat, Dec 27, 2025  2:37:34 PM
-Machine: DESKTOP-AGH04LJ
+Export Date: Sat, Dec 27, 2025  7:45:28 PM
+Machine: AdamHBlade
 User: adamh
-OS: MINGW64_NT-10.0-19045
+OS: MINGW64_NT-10.0-26200
 Claude User Directory: /c/Users/adamh/AppData/Roaming/Code/User
 
 Installed Extensions:
