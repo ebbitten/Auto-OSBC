@@ -33,7 +33,7 @@
       "Bash(venv\\Scripts\\python.exe scripts/recorder.py:*)",
       "Bash(.install-windows.bat)",
       "Bash(py:*)",
-      "Bash(\"./venv-windows/Scripts/python.exe\" -c \"from utilities.machine_config import get_machine_config; config = get_machine_config(); print(f''Using profile: {config.profile_name}''); print(f''App dimensions: {config.get_app_dimensions()}'')\")",
+      "Bash(\"./venv-windows/Scripts/python.exe\" -c:*)",
       "Bash(\"./venv-windows/Scripts/python.exe\" scripts/recorder.py --list-templates)",
       "Bash(\"./venv-windows/Scripts/osbc.exe\" status)",
       "Bash(\"./venv-windows/Scripts/osbc.exe\" --profile desktop status)",
