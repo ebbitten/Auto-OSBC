@@ -58,8 +58,21 @@ class LoginScreenInfo:
     error_message: Optional[str] = None
 
 
-# Path to login template images
+# Path to login template images (legacy - use _get_login_template for per-machine support)
 LOGIN_IMAGES_PATH = Path(__file__).parent.parent.parent / "images" / "bot" / "login"
+
+
+def _get_login_template(filename: str) -> Path:
+    """Get the path to a login template, supporting per-machine overrides.
+
+    Args:
+        filename: Template filename (e.g., "existing_user_button.png")
+
+    Returns:
+        Path to the template (machine-specific if exists, otherwise default)
+    """
+    from utilities.imagesearch import get_template_path
+    return get_template_path("login", filename)
 
 
 class LoginScreenDetector:
@@ -109,13 +122,15 @@ class LoginScreenDetector:
         self._cached_win_rect = None
 
     def _search_template(
-        self, template_path: Path, confidence: float = 0.8
+        self, template_path: Path, confidence: float = 0.15
     ) -> Optional["Rectangle"]:
         """Search for a template using cached screenshot.
 
         Args:
             template_path: Path to the template image.
-            confidence: Match confidence threshold.
+            confidence: Match error threshold (0 = perfect, lower is stricter).
+                       The imagesearch module uses TM_SQDIFF_NORMED where lower = better.
+                       Default 0.15 means accept matches with < 15% error.
 
         Returns:
             Rectangle of the found template, or None.
@@ -354,7 +369,7 @@ class LoginScreenDetector:
         Returns:
             True if on login screen, False otherwise
         """
-        return self._search_template(LOGIN_IMAGES_PATH / "cancel_button.png") is not None
+        return self._search_template(_get_login_template("cancel_button.png")) is not None
 
     def _is_welcome_screen(self) -> bool:
         """Check if we're on the welcome screen.
@@ -377,19 +392,19 @@ class LoginScreenDetector:
         """
         try:
             # First check if Cancel button is present - if so, we're on LOGIN not WELCOME
-            cancel = self._search_template(LOGIN_IMAGES_PATH / "cancel_button.png")
+            cancel = self._search_template(_get_login_template("cancel_button.png"))
             if cancel:
                 return None  # Cancel button means LOGIN screen, not WELCOME
 
             # Check for Existing User button
             existing_user = self._search_template(
-                LOGIN_IMAGES_PATH / "existing_user_button.png"
+                _get_login_template("existing_user_button.png")
             )
             if not existing_user:
                 return None
 
             # Also verify "New User" button is present (both must exist on welcome)
-            new_user = self._search_template(LOGIN_IMAGES_PATH / "new_user_button.png")
+            new_user = self._search_template(_get_login_template("new_user_button.png"))
 
             # Both buttons must be found AND they should be at similar Y position
             # (side by side on the welcome screen)
@@ -411,7 +426,7 @@ class LoginScreenDetector:
         Returns:
             Rectangle of the button, or None if not found
         """
-        return self._search_template(LOGIN_IMAGES_PATH / "existing_user_button.png")
+        return self._search_template(_get_login_template("existing_user_button.png"))
 
     def get_click_to_play_button_location(self) -> Optional["Rectangle"]:
         """Find the 'Click here to Play' button after login.
@@ -422,7 +437,7 @@ class LoginScreenDetector:
         Returns:
             Rectangle of the button, or None if not found
         """
-        return self._search_template(LOGIN_IMAGES_PATH / "click_to_play.png")
+        return self._search_template(_get_login_template("click_to_play.png"))
 
     def get_error_message(self) -> Optional[str]:
         """Extract any error message from the login screen.
@@ -442,7 +457,11 @@ class LoginScreenDetector:
         Returns:
             Rectangle of the button, or None if not found
         """
-        return self._search_template(LOGIN_IMAGES_PATH / "try_again_button.png")
+        # Use stricter threshold (0.1) to avoid false matches on similar brown textures
+        return self._search_template(
+            _get_login_template("try_again_button.png"),
+            confidence=0.1,
+        )
 
     def is_on_invalid_credentials_screen(self) -> bool:
         """Check if we're on the invalid credentials error screen.
@@ -456,10 +475,10 @@ class LoginScreenDetector:
 
     def _find_login_button_template(self) -> Optional["Rectangle"]:
         """Find login button using template matching."""
-        # Use higher confidence (0.9) to avoid false matches
+        # Use stricter threshold (0.1) to avoid false matches
         return self._search_template(
-            LOGIN_IMAGES_PATH / "login_button.png",
-            confidence=0.9,
+            _get_login_template("login_button.png"),
+            confidence=0.1,
         )
 
     def _find_welcome_screen_template(self) -> Optional["Rectangle"]:
@@ -469,12 +488,12 @@ class LoginScreenDetector:
         These indicate we're on the initial login screen before entering credentials.
         """
         # Try to find "Existing User" button
-        result = self._search_template(LOGIN_IMAGES_PATH / "existing_user_button.png")
+        result = self._search_template(_get_login_template("existing_user_button.png"))
         if result:
             return result
 
         # Try to find "Welcome to RuneScape" text
-        return self._search_template(LOGIN_IMAGES_PATH / "welcome_to_runescape.png")
+        return self._search_template(_get_login_template("welcome_to_runescape.png"))
 
     def _detect_login_screen_ocr(self) -> bool:
         """Detect login screen using OCR.

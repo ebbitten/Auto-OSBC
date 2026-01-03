@@ -19,6 +19,52 @@ from utilities.geometry import Point, Rectangle
 from utilities.machine_config import get_machine_config
 
 
+def get_character_from_title(title: str) -> str:
+    """Extract character name from RuneLite window title.
+
+    RuneLite titles are formatted as: 'RuneLite - characterName'
+
+    Args:
+        title: Window title to parse
+
+    Returns:
+        Character name if found, empty string otherwise
+    """
+    if " - " in title:
+        return title.split(" - ", 1)[1].strip()
+    return ""
+
+
+def find_runelite_by_character(character_name: str) -> "pywinctl.Window":
+    """Find a RuneLite window for a specific character.
+
+    Args:
+        character_name: The character name to search for
+
+    Returns:
+        The pywinctl Window if found, None otherwise
+    """
+    windows = pywinctl.getWindowsWithTitle("RuneLite", condition=2)
+    for win in windows:
+        if get_character_from_title(win.title) == character_name:
+            return win
+    return None
+
+
+def get_all_runelite_windows():
+    """Get all RuneLite windows with their character names.
+
+    Returns:
+        List of (character_name, window) tuples
+    """
+    windows = pywinctl.getWindowsWithTitle("RuneLite", condition=2)
+    result = []
+    for win in windows:
+        char_name = get_character_from_title(win.title)
+        result.append((char_name, win))
+    return result
+
+
 class WindowInitializationError(Exception):
     """
     Exception raised for errors in the Window class.
@@ -77,7 +123,8 @@ class Window:
         self.padding_left = padding_left
 
     def _get_window(self):
-        self._client = pywinctl.getWindowsWithTitle(self.window_title)
+        # Use condition=2 (STARTS_WITH) to match windows like "RuneLite - username"
+        self._client = pywinctl.getWindowsWithTitle(self.window_title, condition=2)
         if self._client:
             return self._client[0]
         else:
@@ -97,6 +144,69 @@ class Window:
                 client.activate()
             except Exception:
                 raise WindowInitializationError("Failed to focus client window. Try bringing it to the foreground.")
+
+    def is_focused(self) -> bool:
+        """
+        Check if the game window is currently focused/active.
+        Returns:
+            True if focused, False otherwise.
+        """
+        try:
+            if client := self.window:
+                return client.isActive
+        except Exception:
+            pass
+        return False
+
+    def ensure_focus(self, max_retries: int = 3, retry_delay: float = 0.2) -> bool:
+        """
+        Ensure the game window is focused, with retry logic.
+        Args:
+            max_retries: Maximum number of focus attempts.
+            retry_delay: Delay between retries in seconds.
+        Returns:
+            True if focus was achieved, False if all retries failed.
+        """
+        for attempt in range(max_retries):
+            if self.is_focused():
+                return True
+            try:
+                self.focus()
+                time.sleep(retry_delay)
+                if self.is_focused():
+                    return True
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    print(f"Failed to focus window after {max_retries} attempts: {e}")
+        return False
+
+    def position_in_zone(self, zone: dict) -> bool:
+        """Position and maximize window within a specific zone.
+
+        Args:
+            zone: Dict with 'left' and 'width' keys defining the zone bounds
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            client = self.window
+            if not client:
+                return False
+
+            # Get screen height from config
+            config = get_machine_config()
+            screen_height = config.get_screen_height()
+
+            # Position window at zone left edge, top of screen
+            client.moveTo(zone["left"], 0)
+            # Resize to fill the zone
+            client.resizeTo(zone["width"], screen_height)
+
+            return True
+        except Exception as e:
+            print(f"Failed to position window in zone: {e}")
+            return False
 
     def position(self) -> Point:
         """
@@ -148,7 +258,7 @@ class Window:
         Returns:
             True if successful, False otherwise.
         """
-        if chat := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("ui_templates", "chat.png"), client_rect):
+        if chat := imsearch.search_img_in_rect(imsearch.get_template_path("ui_templates", "chat.png"), client_rect):
             # Locate chat tabs
             self.chat_tabs = []
             x, y = 5, 143
@@ -183,7 +293,7 @@ class Window:
         Returns:
             True if successful, False otherwise.
         """
-        if cp := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("ui_templates", "inv.png"), client_rect):
+        if cp := imsearch.search_img_in_rect(imsearch.get_template_path("ui_templates", "inv.png"), client_rect):
             self.__locate_cp_tabs(cp)
             self.__locate_inv_slots(cp)
             self.__locate_prayers(cp)
@@ -203,12 +313,15 @@ class Window:
         
         # Use configuration if available
         if "rows" in cp_tabs_config:
+            # tab_width is at top level, not per-row
+            tab_width = cp_tabs_config.get("tab_width", 30)
             for row in cp_tabs_config["rows"]:
+                row_tab_width = row.get("tab_width", tab_width)
                 for x_pos in row["positions"]:
                     self.cp_tabs.append(Rectangle(
                         left=x_pos + cp.left,
                         top=row["y"] + cp.top,
-                        width=row["tab_width"],
+                        width=row_tab_width,
                         height=row["height"]
                     ))
         else:
@@ -370,10 +483,10 @@ class Window:
         # 'm' refers to minimap area
         config = get_machine_config()
         
-        if m := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("ui_templates", "minimap.png"), client_rect):
+        if m := imsearch.search_img_in_rect(imsearch.get_template_path("ui_templates", "minimap.png"), client_rect):
             self.client_fixed = False
             mode = "resizable_mode"
-        elif m := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("ui_templates", "minimap_fixed.png"), client_rect):
+        elif m := imsearch.search_img_in_rect(imsearch.get_template_path("ui_templates", "minimap_fixed.png"), client_rect):
             self.client_fixed = True
             mode = "fixed_mode"
         else:
@@ -463,6 +576,14 @@ class MockWindow(Window):
 
     def focus(self) -> None:
         print("MockWindow.focus() called.")
+
+    def is_focused(self) -> bool:
+        print("MockWindow.is_focused() called.")
+        return True
+
+    def ensure_focus(self, max_retries: int = 3, retry_delay: float = 0.2) -> bool:
+        print("MockWindow.ensure_focus() called.")
+        return True
 
     def position(self) -> Point:
         print("MockWindow.position() called.")

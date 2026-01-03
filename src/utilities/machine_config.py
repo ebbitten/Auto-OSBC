@@ -74,7 +74,7 @@ class MachineConfig:
         # Add your machine hostname mappings here
         hostname_map = {
             "adamhblade": "laptop",  # Laptop machine
-            # Add desktop hostname when known (probably "desktop-agh04lj")
+            "desktop-agh04lj": "desktop",  # Desktop machine
         }
         
         if hostname in hostname_map:
@@ -138,6 +138,44 @@ class MachineConfig:
         """Get default window size (width, height)."""
         size = self.get("display", "runelite_window", "default_size", default=[773, 534])
         return tuple(size)
+
+    def get_window_target_size(self) -> Tuple[int, int]:
+        """Get target window size for launching (width, height).
+
+        This is the size the window should be resized to after launch.
+        Falls back to zone dimensions if no target_size specified,
+        then to default_size as final fallback.
+        """
+        # First check for explicit target_size
+        target = self.get("display", "runelite_window", "target_size")
+        if target:
+            return tuple(target)
+
+        # Fall back to bot zone dimensions
+        zone = self.get_bot_zone()
+        if zone:
+            return (zone["width"], self.get_screen_height())
+
+        # Final fallback to default size
+        return self.get_window_default_size()
+
+    def get_snapped_position(self) -> Optional[Tuple[int, int]]:
+        """Get the expected snapped position for bot window (left, top).
+
+        On systems using Windows FancyZones, windows snap to predefined zones
+        with specific positions that differ from raw moveTo() coordinates.
+
+        Returns:
+            Tuple of (left, top) if snapped_position is configured, else None.
+        """
+        pos = self.get("display", "runelite_window", "snapped_position")
+        if pos:
+            return tuple(pos)
+        return None
+
+    def uses_fancyzones(self) -> bool:
+        """Check if this machine uses Windows FancyZones for window management."""
+        return self.get("display", "fancyzones", "enabled", default=False)
     
     def get_app_dimensions(self) -> Tuple[int, int]:
         """Get OSBC app window dimensions."""
@@ -225,7 +263,38 @@ class MachineConfig:
             "tab_width": 30,
             "combat_tab": {"width": 38, "x": 5}
         })
-    
+
+    def get_window_zone(self, zone_name: str) -> Optional[Dict[str, Any]]:
+        """Get zone bounds for positioning windows.
+
+        Args:
+            zone_name: Name of the zone (e.g., "bot", "user", "editor")
+
+        Returns:
+            Dict with zone configuration (left, width, description) or None
+        """
+        zones = self.get("display", "zones", default={})
+        return zones.get(zone_name)
+
+    def get_bot_zone(self) -> Dict[str, int]:
+        """Get the zone where bot windows should be positioned.
+
+        Returns:
+            Dict with 'left' and 'width' keys defining the bot zone.
+            Falls back to left half of screen if no zone configured.
+        """
+        zone = self.get_window_zone("bot")
+        if zone:
+            return {"left": zone.get("left", 0), "width": zone.get("width", 960)}
+        # Default: left half of screen for single monitor
+        res = self.get("display", "primary_resolution", default=[1920, 1080])
+        return {"left": 0, "width": res[0] // 2}
+
+    def get_screen_height(self) -> int:
+        """Get the screen height from resolution config."""
+        res = self.get("display", "primary_resolution", default=[1920, 1080])
+        return res[1]
+
     def reload(self) -> None:
         """Reload the configuration from disk."""
         self._load_profile()

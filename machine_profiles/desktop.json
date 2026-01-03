@@ -1,15 +1,33 @@
 {
   "machine_name": "desktop",
-  "description": "Desktop machine with 1920x1080 display",
+  "description": "Desktop machine with ultrawide display split into thirds using Windows FancyZones",
   "display": {
-    "primary_resolution": [1920, 1080],
+    "primary_resolution": [3840, 1080],
     "dpi_scale": 1.0,
+    "fancyzones": {
+      "enabled": true,
+      "note": "Windows FancyZones handles window snapping. Use Win+Arrow or drag to zone to snap.",
+      "bot_zone": {
+        "left": 57,
+        "width": 958,
+        "height": 1087,
+        "description": "Left zone - bot's RuneLite (actual FancyZones dimensions)"
+      }
+    },
+    "zones": {
+      "bot": {"left": 0, "width": 1280, "description": "Left third - bot's RuneLite (logical zone)"},
+      "user": {"left": 1280, "width": 1280, "description": "Middle third - off limits"},
+      "editor": {"left": 2560, "width": 1280, "description": "Right third - code editor"}
+    },
     "runelite_window": {
       "default_size": [773, 534],
+      "target_size": [958, 1087],
+      "snapped_position": [57, 0],
       "padding": {
         "top": 26,
         "left": 0
-      }
+      },
+      "note": "target_size and snapped_position reflect actual FancyZones snap dimensions"
     }
   },
   "app": {
@@ -26,6 +44,19 @@
     "resizable_mode": {}
   },
   "paths": {
-    "runelite_profiles": "~/.runelite/profiles2"
+    "runelite_profiles": "~/.runelite/profiles2",
+    "runelite_executable": "C:/Users/adamh/AppData/Local/RuneLite/RuneLite.exe"
+  },
+  "osbc_ui": {
+    "comment": "OSBC GUI element positions relative to window top-left",
+    "game_dropdown": {
+      "x": 110,
+      "y": 105
+    },
+    "osrs_option_offset_y": 60,
+    "launch_button": {
+      "x": 450,
+      "y": 322
+    }
   }
 }

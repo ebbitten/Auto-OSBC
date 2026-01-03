@@ -10,35 +10,38 @@ from typing import Optional, Tuple
 from model.actions.base import ActionOutcome
 from model.actions.intents import ClickIntent
 from model.actions.window import find_window
-from utilities.imagesearch import BOT_IMAGES
+from utilities.imagesearch import BOT_IMAGES, get_template_path
 
 
 def check_windows_status() -> ActionOutcome:
-    """Check status of OSBC and RuneLite windows.
+    """Check status of OSBC and bot's RuneLite windows.
 
-    Useful as a pre-check before launching or interacting.
+    Uses BotWindowService to ensure we only check the bot's windows,
+    not the user's personal RuneLite windows.
 
     Returns:
         ActionOutcome with window status data:
         - osbc_running: True if OSBC window found
-        - runelite_running: True if RuneLite window found
+        - runelite_running: True if bot's RuneLite window found
         - osbc_title: OSBC window title (if found)
         - runelite_title: RuneLite window title (if found)
     """
-    osbc_window = find_window("OS Bot")
-    runelite_window = find_window("RuneLite")
+    from utilities.bot_window_service import get_bot_window_service
 
-    osbc_running = osbc_window is not None
-    runelite_running = runelite_window is not None
+    service = get_bot_window_service()
+    osbc_running, runelite_running, runelite_title = service.check_windows_status()
+
+    osbc_window = service.find_osbc_window()
+    osbc_title = osbc_window.title if osbc_window else None
 
     status_parts = []
     if osbc_running:
-        status_parts.append(f"OSBC: {osbc_window.title}")
+        status_parts.append(f"OSBC: {osbc_title}")
     else:
         status_parts.append("OSBC: not running")
 
     if runelite_running:
-        status_parts.append(f"RuneLite: {runelite_window.title}")
+        status_parts.append(f"RuneLite: {runelite_title}")
     else:
         status_parts.append("RuneLite: not running")
 
@@ -46,8 +49,8 @@ def check_windows_status() -> ActionOutcome:
         " | ".join(status_parts),
         osbc_running=osbc_running,
         runelite_running=runelite_running,
-        osbc_title=osbc_window.title if osbc_window else None,
-        runelite_title=runelite_window.title if runelite_window else None,
+        osbc_title=osbc_title,
+        runelite_title=runelite_title,
     )
 
 
@@ -55,6 +58,7 @@ def find_game_dropdown(osbc_window) -> Tuple[int, int]:
     """Find the 'Select a game' dropdown in OSBC sidebar.
 
     The dropdown is in the left sidebar, near the top.
+    Uses machine profile for coordinates if available.
 
     Args:
         osbc_window: pywinctl Window object for OSBC
@@ -62,11 +66,18 @@ def find_game_dropdown(osbc_window) -> Tuple[int, int]:
     Returns:
         (x, y) center point of dropdown
     """
-    # Dropdown is in left sidebar, roughly 130px from left, 128px from top
-    # These are relative to the OSBC window content area (after title bar)
-    title_bar = 30
-    dropdown_x = osbc_window.left + 130
-    dropdown_y = osbc_window.top + title_bar + 98  # ~128px from window top
+    from utilities.machine_config import get_machine_config
+
+    config = get_machine_config()
+    osbc_ui = config.get("osbc_ui", default={})
+
+    # Get dropdown position from config or use defaults
+    dropdown_config = osbc_ui.get("game_dropdown", {})
+    rel_x = dropdown_config.get("x", 130)  # Default: 130px from left
+    rel_y = dropdown_config.get("y", 128)  # Default: 128px from top
+
+    dropdown_x = osbc_window.left + rel_x
+    dropdown_y = osbc_window.top + rel_y
 
     return (dropdown_x, dropdown_y)
 
@@ -142,19 +153,26 @@ def prepare_select_game(game_name: str = "OSRS") -> ActionOutcome:
         except Exception:
             pass
 
-    # Fallback: Calculate position based on dropdown order
-    # Dropdown menu appears below the button with items:
-    # - "Select a game" header at ~170px from window top
-    # - "OSRS" at ~203px from window top
-    # - Other games below that
+    # Fallback: Calculate position based on machine config and dropdown order
+    from utilities.machine_config import get_machine_config
+
+    config = get_machine_config()
+    osbc_ui = config.get("osbc_ui", default={})
+
+    # Get dropdown position for base calculation
+    dropdown_config = osbc_ui.get("game_dropdown", {})
+    dropdown_x = dropdown_config.get("x", 110)
+    dropdown_y = dropdown_config.get("y", 105)
+
+    # OSRS option is below dropdown by offset
+    osrs_offset = osbc_ui.get("osrs_option_offset_y", 60)
+
     game_order = {"osrs": 0, "alora": 1, "near reality": 2}
     game_index = game_order.get(game_name.lower(), 0)
 
-    # OSRS is first selectable item, starts at ~203px from window top
-    base_y = 203
     option_height = 33  # Each dropdown option is ~33px tall
-    game_y = osbc_window.top + base_y + (game_index * option_height)
-    game_x = osbc_window.left + 130
+    game_y = osbc_window.top + dropdown_y + osrs_offset + (game_index * option_height)
+    game_x = osbc_window.left + dropdown_x
 
     intent = ClickIntent(point=(game_x, game_y), speed="medium")
 
@@ -180,8 +198,8 @@ def find_launch_button(osbc_window) -> Optional[Tuple[int, int]]:
     """
     import pyautogui
 
-    # Use template matching to find the button
-    template_path = BOT_IMAGES / "actions" / "launch_button.png"
+    # Use template matching to find the button (supports per-machine templates)
+    template_path = get_template_path("actions", "launch_button.png")
     if not template_path.exists():
         return None
 
@@ -194,7 +212,7 @@ def find_launch_button(osbc_window) -> Optional[Tuple[int, int]]:
                 osbc_window.width,
                 osbc_window.height,
             ),
-            confidence=0.7,  # Slightly lower confidence for theme variations
+            confidence=0.85,  # Higher confidence to avoid false matches on similar blue UI elements
         )
         if location:
             center = pyautogui.center(location)
@@ -283,40 +301,47 @@ def click_launch_button() -> ActionOutcome:
 
 
 def confirm_runelite_window(timeout: float = 60.0) -> ActionOutcome:
-    """Confirm RuneLite window appears after launch.
+    """Confirm bot's RuneLite window appears after launch.
 
     This is the CONFIRMATION part of the action/confirmation pattern.
-    Waits for RuneLite window to appear.
+    Waits for the bot's RuneLite window to appear.
+
+    Uses BotWindowService to ensure we only detect the bot's window.
 
     Args:
         timeout: Max time to wait for RuneLite window
 
     Returns:
-        ActionOutcome with success if RuneLite window found
+        ActionOutcome with success if bot's RuneLite window found
     """
+    from utilities.bot_window_service import get_bot_window_service
+
+    service = get_bot_window_service()
     start_time = time.time()
 
     while time.time() - start_time < timeout:
-        pywin_window = find_window("RuneLite")
-        if pywin_window:
+        bot_window = service.find_bot_runelite_window()
+        if bot_window:
             return ActionOutcome.ok(
                 "RuneLite window detected",
-                window_title=pywin_window.title,
+                window_title=bot_window.title,
                 elapsed_seconds=time.time() - start_time,
             )
         time.sleep(1.0)
 
     return ActionOutcome.timeout(
-        f"RuneLite window not detected within {timeout}s",
+        f"Bot's RuneLite window not detected within {timeout}s",
         timeout_seconds=timeout,
     )
 
 
 def confirm_runelite_login_screen(timeout: float = 60.0) -> ActionOutcome:
-    """Confirm RuneLite window exists and shows login screen.
+    """Confirm bot's RuneLite window exists and shows login screen.
 
     This is the CONFIRMATION part of the action/confirmation pattern.
-    Waits for RuneLite window to appear and verifies it's on the login screen.
+    Waits for bot's RuneLite window to appear and verifies it's on the login screen.
+
+    Uses BotWindowService to ensure we only detect the bot's window.
 
     Args:
         timeout: Max time to wait for RuneLite with login screen
@@ -325,24 +350,21 @@ def confirm_runelite_login_screen(timeout: float = 60.0) -> ActionOutcome:
         ActionOutcome with success if login screen detected
     """
     from model.login.login_screen import LoginScreenDetector, LoginState
-    from utilities.window import Window
+    from utilities.bot_window_service import get_bot_window_service
 
+    service = get_bot_window_service()
     start_time = time.time()
 
     while time.time() - start_time < timeout:
-        # 1. Check if RuneLite window exists (using pywinctl)
-        pywin_window = find_window("RuneLite")
-        if not pywin_window:
+        # 1. Check if bot's RuneLite window exists
+        bot_window = service.find_bot_runelite_window()
+        if not bot_window:
             time.sleep(1.0)
             continue
 
-        # 2. Wrap in utilities.window.Window for detector
+        # 2. Get Window object for detector
         try:
-            game_window = Window(
-                window_title="RuneLite",
-                padding_top=26,
-                padding_left=0,
-            )
+            game_window = service.get_bot_window()
 
             # 3. Check if login screen is showing
             detector = LoginScreenDetector(window=game_window)
@@ -351,7 +373,7 @@ def confirm_runelite_login_screen(timeout: float = 60.0) -> ActionOutcome:
             if state_info.state == LoginState.LOGIN_SCREEN:
                 return ActionOutcome.ok(
                     "RuneLite login screen detected",
-                    window_title=pywin_window.title,
+                    window_title=bot_window.title,
                     login_state=state_info.state.name,
                     elapsed_seconds=time.time() - start_time,
                 )

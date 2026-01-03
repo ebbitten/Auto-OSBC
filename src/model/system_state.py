@@ -5,14 +5,16 @@ Provides a unified view of the current system state across:
 - RuneLite window (launcher, game loaded, login state)
 
 This enables the 'go' command to detect where we are and route appropriately.
+
+IMPORTANT: This module uses BotWindowService to ensure we only detect
+the bot's RuneLite window, not the user's personal window.
 """
 
 from enum import Enum, auto
 from typing import Optional, Tuple
 
-import pywinctl
-
 from model.actions.base import ActionOutcome
+from utilities.bot_window_service import get_bot_window_service
 
 
 class SystemState(Enum):
@@ -70,33 +72,28 @@ class SystemStateDetector:
         return SystemState.RUNELITE_UNKNOWN
 
     def _check_windows(self) -> Tuple[bool, Optional[str]]:
-        """Check for OSBC and RuneLite windows.
+        """Check for OSBC and bot's RuneLite windows.
+
+        Uses BotWindowService to ensure we only detect the bot's window,
+        not the user's personal RuneLite window.
 
         Returns:
-            Tuple of (osbc_running, runelite_window_title)
+            Tuple of (osbc_running, bot_runelite_window_title)
         """
-        osbc_running = False
+        service = get_bot_window_service()
+
+        # Check OSBC
+        osbc_window = service.find_osbc_window()
+        osbc_running = osbc_window is not None
+        if osbc_window:
+            self._osbc_window = osbc_window
+
+        # Check for bot's RuneLite window only
+        bot_window = service.find_bot_runelite_window()
         runelite_title = None
-
-        try:
-            windows = pywinctl.getAllWindows()
-            for window in windows:
-                title = window.title
-                if not title:
-                    continue
-
-                # Check for OSBC
-                if "OS Bot" in title:
-                    osbc_running = True
-                    self._osbc_window = window
-
-                # Check for RuneLite (Launcher or game)
-                if "RuneLite" in title:
-                    runelite_title = title
-                    self._runelite_window = window
-
-        except Exception:
-            pass
+        if bot_window:
+            runelite_title = bot_window.title
+            self._runelite_window = bot_window
 
         return osbc_running, runelite_title
 
@@ -107,11 +104,11 @@ class SystemStateDetector:
             SystemState for the current login screen state.
         """
         try:
-            from utilities.window import Window
             from model.login.login_screen import LoginScreenDetector, LoginState
 
-            # Create a Window object for detection
-            win = Window("RuneLite", padding_top=26, padding_left=0)
+            # Get the bot's window using the service
+            service = get_bot_window_service()
+            win = service.get_bot_window()
 
             # Use the existing LoginScreenDetector
             detector = LoginScreenDetector(win)

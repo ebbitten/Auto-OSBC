@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union
+from typing import Union, Optional
 
 import cv2
 import numpy as np
@@ -10,6 +10,9 @@ from utilities.geometry import Point, Rectangle
 __PATH = Path(__file__).parent.parent
 IMAGES = __PATH.joinpath("images")
 BOT_IMAGES = IMAGES.joinpath("bot")
+
+# Machine profiles directory for per-machine templates
+__PROFILES_PATH = __PATH.parent / "machine_profiles"
 
 # --- Template Cache ---
 # Cache loaded template images to avoid repeated disk I/O
@@ -40,6 +43,40 @@ def clear_template_cache() -> None:
     _template_cache.clear()
 
 
+def get_template_path(category: str, filename: str, profile_name: Optional[str] = None) -> Path:
+    """Get the path to a template image, checking machine-specific paths first.
+
+    This enables per-machine template overrides. Templates are searched in order:
+    1. machine_profiles/{profile}/images/{category}/{filename}
+    2. src/images/bot/{category}/{filename} (default fallback)
+
+    Args:
+        category: Template category subdirectory (e.g., "login", "ui_templates", "actions")
+        filename: Template filename (e.g., "existing_user_button.png")
+        profile_name: Optional profile name. If None, uses current machine config.
+
+    Returns:
+        Path to the template file (machine-specific if exists, otherwise default)
+
+    Examples:
+        >>> path = get_template_path("login", "existing_user_button.png")
+        >>> # On desktop, returns machine_profiles/desktop/images/login/existing_user_button.png
+        >>> # if it exists, otherwise returns src/images/bot/login/existing_user_button.png
+    """
+    # Get profile name if not provided
+    if profile_name is None:
+        from utilities.machine_config import get_machine_config
+        profile_name = get_machine_config().profile_name
+
+    # Check machine-specific path first
+    machine_path = __PROFILES_PATH / profile_name / "images" / category / filename
+    if machine_path.exists():
+        return machine_path
+
+    # Fall back to default path
+    return BOT_IMAGES / category / filename
+
+
 def __imagesearcharea(template: Union[cv2.Mat, str, Path], im: cv2.Mat, confidence: float) -> Rectangle:
     """
     Locates an image within another image.
@@ -50,17 +87,27 @@ def __imagesearcharea(template: Union[cv2.Mat, str, Path], im: cv2.Mat, confiden
     Returns:
         A Rectangle outlining the found template inside the image.
     """
-    # If image doesn't have an alpha channel, convert it from BGR to BGRA
-    if len(template.shape) < 3 or template.shape[2] != 4:
-        template = cv2.cvtColor(template, cv2.COLOR_BGR2BGRA)
     # Get template dimensions
     hh, ww = template.shape[:2]
-    # Extract base image and alpha channel
-    base = template[:, :, 0:3]
-    alpha = template[:, :, 3]
-    alpha = cv2.merge([alpha, alpha, alpha])
 
-    correlation = cv2.matchTemplate(im, base, cv2.TM_SQDIFF_NORMED, mask=alpha)
+    # Check if template has an alpha channel with actual transparency
+    has_transparency = (
+        len(template.shape) == 3
+        and template.shape[2] == 4
+        and template[:, :, 3].min() < 255  # Has some transparent pixels
+    )
+
+    if has_transparency:
+        # Use alpha channel as mask for templates with transparency
+        base = template[:, :, 0:3]
+        alpha = template[:, :, 3]
+        alpha_mask = cv2.merge([alpha, alpha, alpha])
+        correlation = cv2.matchTemplate(im, base, cv2.TM_SQDIFF_NORMED, mask=alpha_mask)
+    else:
+        # No transparency - use simple matching without mask
+        base = template[:, :, 0:3] if len(template.shape) == 3 and template.shape[2] == 4 else template
+        correlation = cv2.matchTemplate(im, base, cv2.TM_SQDIFF_NORMED)
+
     min_val, _, min_loc, _ = cv2.minMaxLoc(correlation)
     if min_val < confidence:
         return Rectangle.from_points(Point(min_loc[0], min_loc[1]), Point(min_loc[0] + ww, min_loc[1] + hh))

@@ -46,6 +46,23 @@ python scripts/recorder.py --from-session "captures/2025-..." --extract-template
 | `osbc start` | Launch RuneLite and open OSBC GUI |
 | `osbc login` | Perform automated login on RuneLite |
 
+## IMPORTANT: Always Verify State with Screenshots
+
+**Before trusting state detection, take a screenshot to verify!** State detection can be wrong due to template mismatches.
+
+```bash
+# Capture screenshot of current window state
+python scripts/recorder.py --window "RuneLite" --duration 1 --interval 1000
+
+# Then view the screenshot to verify actual state
+# Screenshots are saved to captures/YYYY-MM-DD_HH-MM-SS/
+```
+
+When debugging state detection issues:
+1. Run `osbc status` to see what the bot thinks
+2. Capture a screenshot to see actual state
+3. Compare - if they don't match, it's a template matching issue
+
 ## Mandatory TDD Workflow for Bot Development
 
 ### Pre-Implementation (REQUIRED):

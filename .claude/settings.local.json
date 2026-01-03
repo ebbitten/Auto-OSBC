@@ -43,7 +43,12 @@
       "Bash(cmd.exe /c:*)",
       "Bash(./sync-preferences.sh status:*)",
       "Bash(echo $HOME)",
-      "Bash(./sync-preferences.sh:*)"
+      "Bash(./sync-preferences.sh:*)",
+      "Bash(osbc status:*)",
+      "Bash(./venv-windows/Scripts/python.exe:*)",
+      "Bash(./venv-windows/Scripts/osbc.exe:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)"
     ],
     "deny": [],
     "ask": []

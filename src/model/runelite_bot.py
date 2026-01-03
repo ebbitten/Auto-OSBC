@@ -159,11 +159,14 @@ class RuneLiteBot(Bot, metaclass=ABCMeta):
             for item in item_text:
                 item.set_rectangle_reference(self.win.game_view)
             sorted_by_closest = sorted(item_text, key=Rectangle.distance_from_center)
-            self.mouse.move_to(sorted_by_closest[0].get_center())
-            for _ in range(5):
+            start_pos = sorted_by_closest[0].get_center()
+            self.mouse.move_to(start_pos)
+            for offset in range(5):
                 if self.mouseover_text(contains=["Take"] + items, color=[clr.OFF_WHITE, clr.OFF_ORANGE]):
                     break
-                self.mouse.move_rel(0, 3, 1, mouseSpeed="fastest")
+                # Use absolute positioning instead of move_rel
+                target_pos = Point(start_pos.x, start_pos.y + (offset + 1) * 3)
+                self.mouse.move_to(target_pos, mouseSpeed="fastest")
             self.mouse.right_click()
             # search the right-click menu
             if take_text := ocr.find_text(
@@ -278,5 +281,7 @@ class RuneLiteBot(Bot, metaclass=ABCMeta):
             self.mouse.move_to(rl_login_icon.random_point())
             self.mouse.click()
             time.sleep(0.2)
-            pag.press("enter")
+            # Use safe key press to ensure window is focused
+            if not self._safe_key_press("enter"):
+                self.log_msg("Warning: Could not press enter - focus lost")
             time.sleep(1)

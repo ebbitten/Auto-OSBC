@@ -1,4 +1,5 @@
 import time
+from typing import TYPE_CHECKING, Optional
 
 import mss
 import numpy as np
@@ -11,9 +12,47 @@ import utilities.imagesearch as imsearch
 from utilities.geometry import Point, Rectangle
 from utilities.random_util import truncated_normal_sample
 
+if TYPE_CHECKING:
+    from utilities.window import Window
+
+
+class WindowFocusError(Exception):
+    """Raised when window focus cannot be established for mouse operation."""
+    pass
+
 
 class Mouse:
     click_delay = True
+    _window: Optional["Window"] = None
+    _focus_before_action: bool = True
+
+    @classmethod
+    def set_window(cls, window: "Window") -> None:
+        """
+        Set the window reference for focus verification.
+        Args:
+            window: The Window object to use for focus checks.
+        """
+        cls._window = window
+
+    @classmethod
+    def set_focus_before_action(cls, enabled: bool) -> None:
+        """
+        Enable/disable automatic focus verification before actions.
+        Args:
+            enabled: Whether to check focus before mouse operations.
+        """
+        cls._focus_before_action = enabled
+
+    def _ensure_focus(self) -> bool:
+        """
+        Ensure window is focused before performing mouse action.
+        Returns:
+            True if focus is ensured or checking is disabled, False if focus failed.
+        """
+        if not self._focus_before_action or self._window is None:
+            return True
+        return self._window.ensure_focus()
 
     def move_to(self, destination: tuple, **kwargs):
         """
@@ -27,7 +66,13 @@ class Mouse:
             mouseSpeed: speed of the mouse (options: 'slowest', 'slow', 'medium', 'fast', 'fastest')
                         (default 'fast')
             tween: tweening function to use (default easeOutQuad)
+        Raises:
+            WindowFocusError: if window focus cannot be established.
         """
+        # Ensure window focus before moving
+        if not self._ensure_focus():
+            raise WindowFocusError("Cannot move mouse: window focus lost")
+
         offsetBoundaryX = kwargs.get("offsetBoundaryX", 100)
         offsetBoundaryY = kwargs.get("offsetBoundaryY", 100)
         knotsCount = kwargs.get("knotsCount", self.__calculate_knots(destination))
@@ -85,7 +130,13 @@ class Mouse:
         Returns:
             None, unless check_red_click is True, in which case it returns a boolean indicating
             whether the click was red (i.e., successful action) or not.
+        Raises:
+            WindowFocusError: if window focus cannot be established.
         """
+        # Ensure window focus before clicking
+        if not self._ensure_focus():
+            raise WindowFocusError("Cannot click: window focus lost")
+
         mouse_pos_before = pag.position()
         pag.mouseDown(button=button)
         mouse_pos_after = pag.position()

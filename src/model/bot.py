@@ -92,6 +92,8 @@ class Bot(ABC):
         self.description = description
         self.options_builder = OptionsBuilder(bot_title)
         self.win = window
+        # Wire up mouse with window for focus checks
+        self.mouse.set_window(window)
 
     @abstractmethod
     def main_loop(self):
@@ -223,6 +225,57 @@ class Bot(ABC):
         """
         self.controller.clear_log()
 
+    # --- Focus-Aware Keyboard Input Methods ---
+    def _ensure_focus(self) -> bool:
+        """
+        Ensure the game window is focused before performing input.
+        Returns:
+            True if focus achieved, False otherwise.
+        """
+        if self.win is None:
+            return True
+        return self.win.ensure_focus()
+
+    def _safe_key_down(self, key: str) -> bool:
+        """
+        Press and hold a key with focus verification.
+        Args:
+            key: The key to press down.
+        Returns:
+            True if successful, False if focus lost.
+        """
+        if not self._ensure_focus():
+            self.log_msg(f"Warning: Cannot press {key} - window focus lost")
+            return False
+        pag.keyDown(key)
+        return True
+
+    def _safe_key_up(self, key: str) -> bool:
+        """
+        Release a key with focus verification.
+        Note: Always releases the key even if focus lost to prevent stuck keys.
+        Args:
+            key: The key to release.
+        Returns:
+            True always (key is always released).
+        """
+        pag.keyUp(key)
+        return True
+
+    def _safe_key_press(self, key: str) -> bool:
+        """
+        Press and release a key with focus verification.
+        Args:
+            key: The key to press.
+        Returns:
+            True if successful, False if focus lost.
+        """
+        if not self._ensure_focus():
+            self.log_msg(f"Warning: Cannot press {key} - window focus lost")
+            return False
+        pag.press(key)
+        return True
+
     # --- Misc Utility Functions
     def drop_all(self, skip_rows: int = 0, skip_slots: List[int] = None) -> None:
         """
@@ -238,22 +291,34 @@ class Bot(ABC):
         if skip_rows > 0:
             row_skip = list(range(skip_rows * 4))
             skip_slots = np.unique(row_skip + skip_slots)
-        # Start dropping
-        pag.keyDown("shift")
-        for i, slot in enumerate(self.win.inventory_slots):
-            if i in skip_slots:
-                continue
-            p = slot.random_point()
-            self.mouse.move_to(
-                (p[0], p[1]),
-                mouseSpeed="fast",
-                knotsCount=1,
-                offsetBoundaryY=40,
-                offsetBoundaryX=40,
-                tween=pytweening.easeInOutQuad,
-            )
-            self.mouse.click()
-        pag.keyUp("shift")
+
+        # Ensure focus and press shift with verification
+        if not self._safe_key_down("shift"):
+            self.log_msg("Failed to start drop: window focus lost")
+            return
+
+        try:
+            for i, slot in enumerate(self.win.inventory_slots):
+                if i in skip_slots:
+                    continue
+                # Re-verify focus periodically during long operations
+                if i % 7 == 0 and i > 0:
+                    if not self._ensure_focus():
+                        self.log_msg("Focus lost during drop, aborting...")
+                        break
+                p = slot.random_point()
+                self.mouse.move_to(
+                    (p[0], p[1]),
+                    mouseSpeed="fast",
+                    knotsCount=1,
+                    offsetBoundaryY=40,
+                    offsetBoundaryX=40,
+                    tween=pytweening.easeInOutQuad,
+                )
+                self.mouse.click()
+        finally:
+            # Always release shift to prevent stuck key
+            self._safe_key_up("shift")
 
     def drop(self, slots: List[int]) -> None:
         """
@@ -262,21 +327,29 @@ class Bot(ABC):
             slots: The indices of slots to drop.
         """
         self.log_msg("Dropping items...")
-        pag.keyDown("shift")
-        for i, slot in enumerate(self.win.inventory_slots):
-            if i not in slots:
-                continue
-            p = slot.random_point()
-            self.mouse.move_to(
-                (p[0], p[1]),
-                mouseSpeed="fastest",
-                knotsCount=1,
-                offsetBoundaryY=40,
-                offsetBoundaryX=40,
-                tween=pytweening.easeInOutQuad,
-            )
-            self.mouse.click()
-        pag.keyUp("shift")
+
+        # Ensure focus and press shift with verification
+        if not self._safe_key_down("shift"):
+            self.log_msg("Failed to start drop: window focus lost")
+            return
+
+        try:
+            for i, slot in enumerate(self.win.inventory_slots):
+                if i not in slots:
+                    continue
+                p = slot.random_point()
+                self.mouse.move_to(
+                    (p[0], p[1]),
+                    mouseSpeed="fastest",
+                    knotsCount=1,
+                    offsetBoundaryY=40,
+                    offsetBoundaryX=40,
+                    tween=pytweening.easeInOutQuad,
+                )
+                self.mouse.click()
+        finally:
+            # Always release shift to prevent stuck key
+            self._safe_key_up("shift")
 
     def friends_nearby(self) -> bool:
         """
@@ -343,10 +416,20 @@ class Bot(ABC):
         Logs player out.
         """
         self.log_msg("Logging out...")
-        self.mouse.move_to(self.win.cp_tabs[10].random_point())
+        # Click logout tab
+        logout_tab = self.win.cp_tabs[10]
+        self.mouse.move_to(logout_tab.random_point())
         self.mouse.click()
         time.sleep(1)
-        self.mouse.move_rel(0, -53, 5, 5)
+
+        # Calculate absolute position for logout button instead of move_rel
+        # The logout button is approximately 53 pixels above the tab center
+        tab_center = logout_tab.get_center()
+        logout_button_pos = Point(
+            tab_center.x + round(rd.truncated_normal_sample(-5, 5)),
+            tab_center.y - 53 + round(rd.truncated_normal_sample(-5, 5))
+        )
+        self.mouse.move_to(logout_button_pos)
         self.mouse.click()
 
     def take_break(self, min_seconds: int = 1, max_seconds: int = 30, fancy: bool = False):
@@ -507,15 +590,23 @@ class Bot(ABC):
 
     def __compass_right_click(self, msg, rel_y):
         self.log_msg(msg)
-        self.mouse.move_to(self.win.compass_orb.random_point())
+        compass_point = self.win.compass_orb.random_point()
+        self.mouse.move_to(compass_point)
         self.mouse.right_click()
-        self.mouse.move_rel(0, rel_y, 5, 2)
+
+        # Calculate absolute position instead of move_rel after right-click
+        # Menu appears below the compass, calculate absolute target
+        target_pos = Point(
+            compass_point.x + round(rd.truncated_normal_sample(-5, 5)),
+            compass_point.y + rel_y + round(rd.truncated_normal_sample(-2, 2))
+        )
+        self.mouse.move_to(target_pos, mouseSpeed="fast")
         self.mouse.click()
 
     def move_camera(self, horizontal: int = 0, vertical: int = 0):
         """
         Rotates the camera by specified degrees in any direction.
-        Agrs:
+        Args:
             horizontal: The degree to rotate the camera (-360 to 360).
             vertical: The degree to rotate the camera up (-90 to 90).
         Note:
@@ -528,6 +619,11 @@ class Bot(ABC):
         if vertical < -90 or vertical > 90:
             raise ValueError("Vertical degree must be between -90 and 90.")
 
+        # Ensure focus before camera movement
+        if not self._ensure_focus():
+            self.log_msg("Cannot move camera: window focus lost")
+            return
+
         rotation_time_h = 3.549  # seconds to do a full 360 degree rotation horizontally
         rotation_time_v = 1.75  # seconds to do a full 90 degree rotation vertically
         sleep_h = rotation_time_h / 360 * abs(horizontal)  # time to hold arrow key
@@ -536,13 +632,18 @@ class Bot(ABC):
         direction_h = "right" if horizontal < 0 else "left"
         direction_v = "down" if vertical < 0 else "up"
 
-        def keypress(direction, duration):
+        # Reference to bot for focus check in thread
+        bot_ref = self
+
+        def keypress_with_focus_check(direction, duration):
+            if not bot_ref._ensure_focus():
+                return
             pag.keyDown(direction)
             time.sleep(duration)
             pag.keyUp(direction)
 
-        thread_h = threading.Thread(target=keypress, args=(direction_h, sleep_h), daemon=True)
-        thread_v = threading.Thread(target=keypress, args=(direction_v, sleep_v), daemon=True)
+        thread_h = threading.Thread(target=keypress_with_focus_check, args=(direction_h, sleep_h), daemon=True)
+        thread_v = threading.Thread(target=keypress_with_focus_check, args=(direction_v, sleep_v), daemon=True)
         delay = rd.fancy_normal_sample(0, max(sleep_h, sleep_v))
         if sleep_h > sleep_v:
             thread_h.start()
@@ -656,21 +757,23 @@ class Bot(ABC):
         """
         try:
             self.log_msg("Using banker's note...")
-            
-            # Open inventory with F2 using pyautogui
-            pag.press('f2')
+
+            # Open inventory with F2 using safe key press
+            if not self._safe_key_press('f2'):
+                self.log_msg("Failed to press F2: window focus lost")
+                return False
             time.sleep(0.5)
-            
+
             # Get the last inventory slot (28th slot, index 27)
             last_slot = self.win.inventory_slots[27]
-            
+
             # Click the slot
             self.mouse.move_to(last_slot.random_point())
             time.sleep(0.5)
             self.mouse.click()
             time.sleep(1)
             return True
-            
+
         except Exception as e:
             self.log_msg(f"Error using banker's note: {e}")
             return False

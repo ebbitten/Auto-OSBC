@@ -18,6 +18,8 @@ def auto_launch_runelite(
     login: bool = False,
     timeout: float = 120.0,
     step_delay: float = 0.5,
+    character_name: Optional[str] = None,
+    position_in_bot_zone: bool = True,
 ) -> ActionOutcome:
     """Full auto-launch workflow: OSBC -> Select Game -> Launch -> RuneLite.
 
@@ -27,7 +29,8 @@ def auto_launch_runelite(
     3. Click game dropdown and select the game
     4. Click the Launch button
     5. Wait for RuneLite window to appear
-    6. Optionally trigger login
+    6. Position window in bot zone (ultrawide support)
+    7. Optionally trigger login
 
     Args:
         game: Game to select (default "OSRS")
@@ -35,25 +38,52 @@ def auto_launch_runelite(
         login: If True, trigger login after RuneLite launches
         timeout: Max time to wait for RuneLite window
         step_delay: Delay between steps for UI stability
+        character_name: Expected character name. If provided, only considers a
+                       RuneLite window as 'running' if it matches this character.
+                       Allows launching a new window even if user has their own
+                       RuneLite open with a different character.
+        position_in_bot_zone: If True, position the launched window in the bot
+                             zone (left third on ultrawide monitors)
 
     Returns:
         ActionOutcome with success if RuneLite is running, failure otherwise
     """
+    from utilities.bot_window_service import get_bot_window_service
+    from utilities.machine_config import get_machine_config
+
+    service = get_bot_window_service()
     executor = Executor(bot=None)  # No bot needed for GUI interactions
     steps_completed = []
 
-    # Step 1: Check current status
+    # Step 1: Check current status using BotWindowService
     status = osbc.check_windows_status()
     steps_completed.append(f"Status: {status.message}")
 
-    # If RuneLite already running and skip_if_running, we're done
-    if skip_if_running and status.data.get("runelite_running"):
-        return ActionOutcome.ok(
-            "RuneLite already running",
-            runelite_title=status.data.get("runelite_title"),
-            steps=steps_completed,
-            skipped=True,
-        )
+    # Check for bot's RuneLite window
+    if skip_if_running:
+        bot_window = service.find_bot_runelite_window()
+        if bot_window:
+            steps_completed.append(f"Found bot's existing window: {bot_window.title}")
+
+            # Position in bot zone if requested
+            if position_in_bot_zone:
+                config = get_machine_config()
+                zone = config.get_bot_zone()
+                target_width, target_height = config.get_window_target_size()
+                try:
+                    bot_window.moveTo(zone["left"], 0)
+                    bot_window.resizeTo(target_width, target_height)
+                    steps_completed.append(f"Positioned in bot zone (left={zone['left']}, size={target_width}x{target_height})")
+                except Exception as e:
+                    steps_completed.append(f"Warning: Could not position window: {e}")
+
+            return ActionOutcome.ok(
+                f"Bot's RuneLite already running",
+                runelite_title=bot_window.title,
+                steps=steps_completed,
+                skipped=True,
+                character_name=service.get_bot_character(),
+            )
 
     # Step 2: Launch OSBC if not running
     if not status.data.get("osbc_running"):
@@ -161,7 +191,25 @@ def auto_launch_runelite(
 
     steps_completed.append(f"RuneLite ready: {confirm_result.data.get('window_title')}")
 
-    # Step 7: Optional login
+    # Step 7: Position in bot zone
+    if position_in_bot_zone:
+        config = get_machine_config()
+        zone = config.get_bot_zone()
+        target_width, target_height = config.get_window_target_size()
+
+        # Use BotWindowService to find only the bot's window
+        runelite_win = service.find_bot_runelite_window()
+
+        if runelite_win:
+            try:
+                time.sleep(0.5)  # Brief pause for window to stabilize
+                runelite_win.moveTo(zone["left"], 0)
+                runelite_win.resizeTo(target_width, target_height)
+                steps_completed.append(f"Positioned in bot zone (left={zone['left']}, size={target_width}x{target_height})")
+            except Exception as e:
+                steps_completed.append(f"Warning: Could not position window: {e}")
+
+    # Step 8: Optional login
     if login:
         steps_completed.append("Login requested - triggering login flow...")
         # Login flow would be triggered here
@@ -185,23 +233,30 @@ def shutdown_all(
     close_runelite: bool = True,
     close_osbc: bool = True,
 ) -> ActionOutcome:
-    """Gracefully close RuneLite and/or OSBC windows.
+    """Gracefully close bot's RuneLite and/or OSBC windows.
+
+    Uses BotWindowService to ensure we only close the bot's windows,
+    not the user's personal RuneLite windows.
 
     Args:
-        close_runelite: Close RuneLite if running
+        close_runelite: Close bot's RuneLite if running
         close_osbc: Close OSBC if running
 
     Returns:
         ActionOutcome with status of shutdown
     """
+    from utilities.bot_window_service import get_bot_window_service
+
+    service = get_bot_window_service()
     closed = []
 
     if close_runelite:
-        runelite = window.find_window("RuneLite")
-        if runelite:
+        # Only close bot's RuneLite windows
+        bot_runelite = service.find_bot_runelite_window()
+        if bot_runelite:
             try:
-                runelite.close()
-                closed.append("RuneLite")
+                bot_runelite.close()
+                closed.append(f"RuneLite ({bot_runelite.title})")
             except Exception as e:
                 return ActionOutcome.fail(
                     f"Failed to close RuneLite: {e}",
@@ -209,7 +264,7 @@ def shutdown_all(
                 )
 
     if close_osbc:
-        osbc_win = window.find_window("OS Bot")
+        osbc_win = service.find_osbc_window()
         if osbc_win:
             try:
                 osbc_win.close()

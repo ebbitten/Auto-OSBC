@@ -233,13 +233,14 @@ def _handle_launcher() -> ActionOutcome:
 
 def _handle_invalid_credentials() -> ActionOutcome:
     """Click 'Try again' button to return to login screen."""
-    from utilities.window import Window
+    from utilities.bot_window_service import get_bot_window_service
     from model.login.login_screen import LoginScreenDetector
     from model.actions.executor import Executor
     from model.actions.intents import ClickIntent
 
     try:
-        win = Window("RuneLite", padding_top=26, padding_left=0)
+        service = get_bot_window_service()
+        win = service.get_bot_window()
 
         # Focus window before clicking
         try:
@@ -283,13 +284,14 @@ def _handle_invalid_credentials() -> ActionOutcome:
 def _handle_welcome() -> ActionOutcome:
     """Click 'Existing User' button on welcome screen."""
     print("[GO] Clicking 'Existing User'...")
-    from utilities.window import Window
+    from utilities.bot_window_service import get_bot_window_service
     from model.login.login_screen import LoginScreenDetector
     from model.actions.executor import Executor
     from model.actions.intents import ClickIntent
 
     try:
-        win = Window("RuneLite", padding_top=26, padding_left=0)
+        service = get_bot_window_service()
+        win = service.get_bot_window()
 
         # Focus window before clicking
         try:
@@ -339,8 +341,9 @@ def _handle_login(skip_login: bool) -> ActionOutcome:
 
     # Focus window before login (login_service also focuses, but be sure)
     try:
-        from utilities.window import Window
-        win = Window("RuneLite", padding_top=26, padding_left=0)
+        from utilities.bot_window_service import get_bot_window_service
+        service = get_bot_window_service()
+        win = service.get_bot_window()
         win.focus()
         time.sleep(0.3)
     except Exception:
@@ -348,20 +351,27 @@ def _handle_login(skip_login: bool) -> ActionOutcome:
 
     from model.actions.login_action import perform_login
 
-    result = perform_login(window_title="RuneLite", max_attempts=3)
+    # Get the bot's window title for login
+    from utilities.bot_window_service import get_bot_window_service
+    service = get_bot_window_service()
+    bot_win = service.find_bot_runelite_window()
+    window_title = bot_win.title if bot_win else "RuneLite"
+
+    result = perform_login(window_title=window_title, max_attempts=3)
     return result
 
 
 def _handle_click_to_play() -> ActionOutcome:
     """Click the 'Click to Play' button after login."""
     print("[GO] Clicking to play...")
-    from utilities.window import Window
+    from utilities.bot_window_service import get_bot_window_service
     from model.login.login_screen import LoginScreenDetector
     from model.actions.executor import Executor
     from model.actions.intents import ClickIntent
 
     try:
-        win = Window("RuneLite", padding_top=26, padding_left=0)
+        service = get_bot_window_service()
+        win = service.get_bot_window()
 
         # Focus window before clicking
         try:
@@ -408,43 +418,64 @@ def _handle_click_to_play() -> ActionOutcome:
 
 
 def _close_all_windows() -> ActionOutcome:
-    """Close all OSBC and RuneLite windows.
+    """Close bot's OSBC and RuneLite windows only.
 
     Uses PID-based taskkill to force close since RuneLite has a confirmation dialog.
+
+    IMPORTANT: Only closes windows belonging to the bot, never the user's
+    personal RuneLite windows.
     """
-    print("[GO] Closing existing windows...")
+    print("[GO] Closing bot's windows...")
     import subprocess
     import ctypes
-    import pywinctl
+    from utilities.bot_window_service import get_bot_window_service
 
     try:
         closed = 0
+        service = get_bot_window_service()
 
-        # Get all windows and kill by PID (bypasses confirmation dialogs)
-        windows = pywinctl.getAllWindows()
-        for window in windows:
+        # Close bot's RuneLite windows
+        for window in service.find_all_bot_windows():
             title = window.title or ""
-            if "RuneLite" in title or "OS Bot" in title:
-                try:
-                    # Get the window's process ID
-                    user32 = ctypes.windll.user32
-                    pid = ctypes.c_ulong()
-                    user32.GetWindowThreadProcessId(window.getHandle(), ctypes.byref(pid))
+            try:
+                # Get the window's process ID
+                user32 = ctypes.windll.user32
+                pid = ctypes.c_ulong()
+                user32.GetWindowThreadProcessId(window.getHandle(), ctypes.byref(pid))
 
-                    # Force kill the process
-                    result = subprocess.run(
-                        ["taskkill", "/F", "/PID", str(pid.value)],
-                        capture_output=True,
-                        text=True,
-                    )
-                    if result.returncode == 0:
-                        print(f"[GO] Killed {title} (PID {pid.value})")
-                        closed += 1
-                except Exception as e:
-                    print(f"[GO] Failed to kill {title}: {e}")
+                # Force kill the process
+                result = subprocess.run(
+                    ["taskkill", "/F", "/PID", str(pid.value)],
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode == 0:
+                    print(f"[GO] Killed {title} (PID {pid.value})")
+                    closed += 1
+            except Exception as e:
+                print(f"[GO] Failed to kill {title}: {e}")
+
+        # Close OSBC window
+        osbc_window = service.find_osbc_window()
+        if osbc_window:
+            title = osbc_window.title or "OSBC"
+            try:
+                user32 = ctypes.windll.user32
+                pid = ctypes.c_ulong()
+                user32.GetWindowThreadProcessId(osbc_window.getHandle(), ctypes.byref(pid))
+                result = subprocess.run(
+                    ["taskkill", "/F", "/PID", str(pid.value)],
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode == 0:
+                    print(f"[GO] Killed {title} (PID {pid.value})")
+                    closed += 1
+            except Exception as e:
+                print(f"[GO] Failed to kill {title}: {e}")
 
         if closed > 0:
-            print(f"[GO] Closed {closed} window(s)")
+            print(f"[GO] Closed {closed} bot window(s)")
 
         # Wait for processes to fully terminate
         time.sleep(3)

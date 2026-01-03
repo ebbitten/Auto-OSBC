@@ -5,6 +5,9 @@ Provides fixtures for:
 - State navigation (getting to specific login states)
 - Chaos injection utilities
 - Cleanup and reset
+
+Uses BotWindowService for all window detection to ensure we only
+interact with the bot's windows, never the user's personal windows.
 """
 
 import time
@@ -13,19 +16,25 @@ from typing import Generator, Optional
 import pytest
 import pywinctl
 import pyautogui
+from dotenv import load_dotenv
 
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
+# Load environment variables from .env file for OSBC_USERNAME etc.
+load_dotenv()
+
 from model.system_state import SystemState, SystemStateDetector
 from utilities.window import Window
+from utilities.bot_window_service import get_bot_window_service
 
 
 # Mark all tests in this directory as e2e
 def pytest_configure(config):
     config.addinivalue_line("markers", "e2e: end-to-end tests requiring game client")
+    config.addinivalue_line("markers", "launch: tests that launch OSBC/RuneLite (use -m launch to run explicitly)")
 
 
 @pytest.fixture
@@ -36,21 +45,45 @@ def detector() -> SystemStateDetector:
 
 @pytest.fixture
 def runelite_window() -> Optional[Window]:
-    """Get RuneLite window if running, or None."""
-    try:
-        win = Window("RuneLite", padding_top=26, padding_left=0)
-        _ = win.rectangle()  # Verify it exists
-        return win
-    except Exception:
-        return None
+    """Get the bot's RuneLite window if running, or None.
+
+    Uses BotWindowService to ensure we only return the bot's window,
+    not the user's personal window.
+    """
+    service = get_bot_window_service()
+    return service.get_bot_window_or_none()
 
 
 @pytest.fixture
 def require_runelite(runelite_window) -> Window:
-    """Require RuneLite to be running, skip test if not."""
-    if runelite_window is None:
-        pytest.skip("RuneLite not running")
-    return runelite_window
+    """Require bot's RuneLite window to be running.
+
+    This fixture DOES NOT auto-launch OSBC/RuneLite to avoid disrupting the user.
+    If the bot's window is not running, the test is skipped.
+
+    To run E2E tests, manually launch the bot's RuneLite window first.
+    """
+    if runelite_window is not None:
+        return runelite_window
+
+    service = get_bot_window_service()
+    bot_char = service.get_bot_character()
+
+    # Check if there's ANY RuneLite window
+    all_runelite = pywinctl.getWindowsWithTitle("RuneLite")
+    if all_runelite:
+        # RuneLite is running but it's not the bot's window
+        titles = [w.title for w in all_runelite]
+        pytest.skip(
+            f"RuneLite running but not the bot's window. "
+            f"Found: {titles}. Expected 'RuneLite' or 'RuneLite - {bot_char}'"
+        )
+
+    # No RuneLite at all - skip (don't auto-launch)
+    pytest.skip(
+        f"Bot's RuneLite window not running. "
+        f"Launch RuneLite manually or run 'osbc go' first."
+    )
 
 
 @pytest.fixture
@@ -119,18 +152,26 @@ def cleanup_focus():
 
 
 class ChaosInjector:
-    """Utility class for injecting chaos into the flow."""
+    """Utility class for injecting chaos into the flow.
+
+    Uses BotWindowService to ensure we only operate on the bot's RuneLite window,
+    never the user's personal window.
+    """
 
     def __init__(self, window: Window):
         self.window = window
         self._original_position = None
+        self._service = get_bot_window_service()
+
+    def _get_bot_window(self):
+        """Get the bot's RuneLite window using BotWindowService."""
+        return self._service.find_bot_runelite_window()
 
     def move_window(self, dx: int = 100, dy: int = 100):
-        """Move the window by offset."""
+        """Move the bot's window by offset."""
         try:
-            windows = pywinctl.getWindowsWithTitle(self.window.title)
-            if windows:
-                win = windows[0]
+            win = self._get_bot_window()
+            if win:
                 self._original_position = (win.left, win.top)
                 win.moveTo(win.left + dx, win.top + dy)
                 time.sleep(0.2)
@@ -141,18 +182,18 @@ class ChaosInjector:
         """Restore window to original position."""
         if self._original_position:
             try:
-                windows = pywinctl.getWindowsWithTitle(self.window.title)
-                if windows:
-                    windows[0].moveTo(*self._original_position)
+                win = self._get_bot_window()
+                if win:
+                    win.moveTo(*self._original_position)
             except Exception:
                 pass
 
     def minimize_window(self):
-        """Minimize the game window."""
+        """Minimize the bot's game window."""
         try:
-            windows = pywinctl.getWindowsWithTitle(self.window.title)
-            if windows:
-                windows[0].minimize()
+            win = self._get_bot_window()
+            if win:
+                win.minimize()
                 time.sleep(0.3)
         except Exception:
             pass
@@ -160,10 +201,10 @@ class ChaosInjector:
     def restore_window(self):
         """Restore minimized window."""
         try:
-            windows = pywinctl.getWindowsWithTitle(self.window.title)
-            if windows:
-                windows[0].restore()
-                windows[0].activate()
+            win = self._get_bot_window()
+            if win:
+                win.restore()
+                win.activate()
                 time.sleep(0.3)
         except Exception:
             pass

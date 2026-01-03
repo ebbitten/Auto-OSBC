@@ -250,6 +250,14 @@ class Executor:
         """
         import pyautogui as pag
 
+        # Verify focus before typing
+        if self.bot is not None and hasattr(self.bot, '_ensure_focus'):
+            if not self.bot._ensure_focus():
+                return ActionOutcome.fail(
+                    "Cannot type text: window focus lost",
+                    field_name=intent.field_name,
+                )
+
         # Type the text
         pag.typewrite(intent.text, interval=intent.interval)
 
@@ -270,6 +278,14 @@ class Executor:
         Supports both tap (hold_duration=0) and hold patterns.
         """
         import pyautogui as pag
+
+        # Verify focus before key press
+        if self.bot is not None and hasattr(self.bot, '_ensure_focus'):
+            if not self.bot._ensure_focus():
+                return ActionOutcome.fail(
+                    f"Cannot press key '{intent.key}': window focus lost",
+                    key=intent.key,
+                )
 
         if intent.hold_duration > 0:
             pag.keyDown(intent.key)
